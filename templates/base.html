@@ -1,0 +1,65 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Cổng hỗ trợ và hướng dẫn báo sự cố mạng nội bộ.">
+    <title>{% block title %}Helpdesk · Nhóm 2{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="{% static 'css/site.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Đến nội dung chính</a>
+
+    <aside class="offcanvas-lg offcanvas-start sidebar" tabindex="-1" id="sidebar" aria-labelledby="sidebar-title">
+        <div class="sidebar-brand">
+            <a class="brand-link" href="{% url 'tickets:home' %}">
+                <span class="brand-mark" aria-hidden="true">H</span>
+                <span><strong id="sidebar-title">Helpdesk</strong><small>Hỗ trợ sự cố mạng</small></span>
+            </a>
+            <button class="btn-close d-lg-none" type="button" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Đóng menu"></button>
+        </div>
+        <div class="offcanvas-body sidebar-body">
+            <nav aria-label="Điều hướng chính">
+                <p class="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
+                <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:home' %} is-active{% endif %}" href="{% url 'tickets:home' %}"{% if request.resolver_match.view_name == 'tickets:home' %} aria-current="page"{% endif %}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg>
+                    Trang chủ
+                </a>
+                <p class="nav-caption mt-4">HƯỚNG DẪN</p>
+                <a class="sidebar-link" href="{% url 'tickets:home' %}#incident-types">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    Nhóm sự cố
+                </a>
+                <a class="sidebar-link" href="{% url 'tickets:home' %}#report-guide">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5Z"/><path d="M8 7h8M8 12h8M8 17h5"/></svg>
+                    Thông tin cần chuẩn bị
+                </a>
+            </nav>
+            <div class="sidebar-footer"><span class="group-dot" aria-hidden="true"></span> Đồ án Helpdesk · Nhóm 2</div>
+        </div>
+    </aside>
+
+    <div class="page-shell">
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Mở menu">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+                <span class="topbar-title">{% block page_title %}Trang chủ{% endblock %}</span>
+            </div>
+            <span class="portal-label">Cổng hỗ trợ nội bộ</span>
+        </header>
+        <main id="main-content" class="main-content" tabindex="-1">
+            {% block content %}{% endblock %}
+        </main>
+        <footer class="page-footer">Helpdesk Nhóm 2 <span>Hệ thống tiếp nhận và xử lý sự cố mạng</span></footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="{% static 'js/site.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
