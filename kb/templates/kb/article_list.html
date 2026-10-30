@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Kho kiến thức · Helpdesk{% endblock %}
+
+{% block page_title %}Kho kiến thức{% endblock %}
+
+{% block content %}
+<section aria-labelledby="kb-heading">
+    <div class="mb-4">
+        <h1 id="kb-heading" class="h3 fw-bold">Kho kiến thức</h1>
+        <p class="text-secondary">
+            Hướng dẫn tự xử lý các sự cố mạng thường gặp.
+        </p>
+    </div>
+
+    <div class="row g-4">
+        {% for article in articles %}
+        <div class="col-12 col-md-6 col-xl-4">
+            <article class="card h-100 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="h5">
+                        <a
+                            class="text-decoration-none"
+                            href="{% url 'kb:article_detail' article.pk %}"
+                        >
+                            {{ article.title }}
+                        </a>
+                    </h2>
+
+                    <p class="text-secondary">
+                        {{ article.content|truncatewords:30 }}
+                    </p>
+
+                    <a
+                        class="btn btn-outline-primary btn-sm"
+                        href="{% url 'kb:article_detail' article.pk %}"
+                    >
+                        Đọc hướng dẫn
+                    </a>
+                </div>
+            </article>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                Chưa có bài hướng dẫn được xuất bản.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

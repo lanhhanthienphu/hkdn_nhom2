@@ -29,6 +29,16 @@
                     Trang chủ
                 </a>
                 <p class="nav-caption mt-4">HƯỚNG DẪN</p>
+                <a
+                    class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}"
+                    href="{% url 'kb:article_list' %}"
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 3h16v18H4Z"/>
+                        <path d="M8 7h8M8 11h8M8 15h5"/>
+                    </svg>
+                    Kho kiến thức
+                </a>
                 <a class="sidebar-link" href="{% url 'tickets:home' %}#incident-types">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     Nhóm sự cố
