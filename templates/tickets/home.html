@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Trang chủ · Helpdesk Nhóm 2{% endblock %}
+
+{% block content %}
+<section class="welcome-panel" aria-labelledby="welcome-title">
+    <div class="welcome-copy">
+        <p class="eyebrow">TRUNG TÂM HỖ TRỢ MẠNG</p>
+        <h1 id="welcome-title">Bạn cần hỗ trợ<br class="d-none d-sm-block"> về sự cố mạng?</h1>
+        <p class="welcome-description">Xác định nhóm sự cố và chuẩn bị thông tin để bộ phận kỹ thuật hiểu rõ vấn đề bạn đang gặp.</p>
+        <a href="#report-guide" class="btn btn-light guide-button">Xem thông tin cần chuẩn bị <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="welcome-note">
+        <span class="note-icon" aria-hidden="true">i</span>
+        <p class="mb-2 fw-semibold">Thông tin rõ ràng giúp hỗ trợ nhanh hơn</p>
+        <p class="mb-0">Ghi lại thời điểm xảy ra lỗi, thiết bị đang dùng và thông báo lỗi hiển thị trên màn hình.</p>
+    </div>
+</section>
+
+<section id="incident-types" class="content-section" aria-labelledby="incident-types-title">
+    <div class="section-heading">
+        <div><p class="eyebrow text-secondary">NHẬN DIỆN VẤN ĐỀ</p><h2 id="incident-types-title">Bạn đang gặp sự cố gì?</h2></div>
+        <span class="section-count">04 nhóm sự cố</span>
+    </div>
+    <div class="row g-3">
+        <div class="col-sm-6 col-xl-3">
+            <article class="incident-card">
+                <div class="incident-icon icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8 16a6 6 0 0 1 8 0"/><circle cx="12" cy="20" r="1"/></svg></div>
+                <h3>Mạng LAN / Wi-Fi</h3><p>Mất kết nối, mạng chậm hoặc không truy cập được Internet.</p>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="incident-card">
+                <div class="incident-icon icon-purple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></div>
+                <h3>Kết nối VPN</h3><p>Không kết nối được VPN hoặc không vào được tài nguyên nội bộ.</p>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="incident-card">
+                <div class="incident-icon icon-teal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H3V8h18v9h-4"/><path d="M7 13h10v8H7ZM17 11h1"/></svg></div>
+                <h3>Máy in</h3><p>Không tìm thấy máy in mạng hoặc không gửi được lệnh in.</p>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="incident-card">
+                <div class="incident-icon icon-orange"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12h.01M12 12h.01M17 12h.01" stroke-width="3"/></svg></div>
+                <h3>Sự cố khác</h3><p>Các vấn đề mạng hoặc thiết bị chưa thuộc những nhóm trên.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="report-guide" class="content-section" aria-labelledby="report-guide-title">
+    <div class="section-heading">
+        <div><p class="eyebrow text-secondary">BÁO SỰ CỐ ĐẦY ĐỦ</p><h2 id="report-guide-title">Thông tin cần chuẩn bị</h2></div>
+    </div>
+    <div class="guide-panel">
+        <div class="guide-item"><span class="step-number" aria-hidden="true">01</span><div><h3>Tiêu đề ngắn gọn, cụ thể</h3><p>Ví dụ: “Không kết nối được Wi-Fi tại phòng làm việc”.</p></div></div>
+        <div class="guide-item"><span class="step-number" aria-hidden="true">02</span><div><h3>Mô tả và thời điểm xảy ra lỗi</h3><p>Nêu thiết bị, vị trí, biểu hiện của lỗi và những thao tác bạn đã thử.</p></div></div>
+        <div class="guide-item"><span class="step-number" aria-hidden="true">03</span><div><h3>Mức độ ảnh hưởng</h3><p>Cho biết sự cố ảnh hưởng một người hay nhiều người, và công việc có bị gián đoạn không.</p></div></div>
+        <div class="guide-item"><span class="step-number" aria-hidden="true">04</span><div><h3>Ảnh chụp hoặc thông báo lỗi</h3><p>Chuẩn bị hình ảnh hoặc file log giúp kỹ thuật viên xác định nguyên nhân.</p></div></div>
+    </div>
+</section>
+{% endblock %}

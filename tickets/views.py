@@ -1,3 +1,5 @@
 from django.shortcuts import render
 
-# Create your views here.
+def home(request):
+    """Trang chu dung bo cuc chung cua giao dien nguoi dung."""
+    return render(request, 'tickets/home.html')
