@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} · Helpdesk{% endblock %}
+
+{% block page_title %}Bài hướng dẫn{% endblock %}
+
+{% block content %}
+<a
+    class="btn btn-outline-secondary mb-4"
+    href="{% url 'kb:article_list' %}"
+>
+    ← Quay lại kho kiến thức
+</a>
+
+<article class="card border-0 shadow-sm">
+    <div class="card-body p-4 p-md-5">
+        <h1 class="h3 fw-bold">{{ article.title }}</h1>
+
+        <p class="text-secondary small mb-4">
+            Cập nhật: {{ article.updated_at|date:"d/m/Y H:i" }}
+        </p>
+
+        <div class="text-break">
+            {{ article.content|linebreaks }}
+        </div>
+    </div>
+</article>
+{% endblock %}
