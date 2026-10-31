@@ -13,6 +13,46 @@
         </p>
     </div>
 
+        <form
+        method="get"
+        action="{% url 'kb:article_list' %}"
+        class="mb-4"
+        role="search"
+    >
+        <label for="kb-search" class="form-label">
+            Tìm bài hướng dẫn
+        </label>
+
+        <div class="d-flex flex-wrap gap-2">
+            <input
+                type="search"
+                id="kb-search"
+                name="q"
+                value="{{ query }}"
+                class="form-control flex-grow-1 w-auto"
+                placeholder="Nhập từ khóa: Wi-Fi, VPN, máy in..."
+            >
+
+            <button type="submit" class="btn btn-primary">
+                Tìm kiếm
+            </button>
+
+            {% if query %}
+            <a
+                href="{% url 'kb:article_list' %}"
+                class="btn btn-outline-secondary"
+            >
+                Xóa bộ lọc
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if query %}
+    <p class="text-secondary">
+        Kết quả tìm kiếm cho: <strong>{{ query }}</strong>
+    </p>
+    {% endif %}
     <div class="row g-4">
         {% for article in articles %}
         <div class="col-12 col-md-6 col-xl-4">
@@ -43,7 +83,12 @@
         {% empty %}
         <div class="col-12">
             <div class="alert alert-info">
-                Chưa có bài hướng dẫn được xuất bản.
+                {% if query %}
+                    Không tìm thấy bài hướng dẫn phù hợp với “{{ query }}”.
+                    Hãy thử từ khóa khác.
+                {% else %}
+                    Chưa có bài hướng dẫn được xuất bản.
+                {% endif %}
             </div>
         </div>
         {% endfor %}
