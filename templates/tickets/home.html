@@ -7,8 +7,12 @@
     <div class="welcome-copy">
         <p class="eyebrow">TRUNG TÂM HỖ TRỢ MẠNG</p>
         <h1 id="welcome-title">Bạn cần hỗ trợ<br class="d-none d-sm-block"> về sự cố mạng?</h1>
-        <p class="welcome-description">Xác định nhóm sự cố và chuẩn bị thông tin để bộ phận kỹ thuật hiểu rõ vấn đề bạn đang gặp.</p>
-        <a href="#report-guide" class="btn btn-light guide-button">Xem thông tin cần chuẩn bị <span aria-hidden="true">→</span></a>
+        <p class="welcome-description">Mô tả sự cố, theo dõi tiến độ và trao đổi thông tin trên cùng một ticket. Bắt đầu bằng việc chọn nhóm sự cố bạn đang gặp.</p>
+        <div class="welcome-actions">
+            <a href="{% url 'tickets:create' %}" class="btn btn-light guide-button">Tạo ticket <span aria-hidden="true">→</span></a>
+            <a href="{% url 'tickets:list' %}" class="btn btn-outline-light guide-button">Ticket của tôi</a>
+        </div>
+        <p class="welcome-demo-note">Các trang ticket hiện dùng dữ liệu mẫu để xem thử giao diện.</p>
     </div>
     <div class="welcome-note">
         <span class="note-icon" aria-hidden="true">i</span>
@@ -27,24 +31,28 @@
             <article class="incident-card">
                 <div class="incident-icon icon-blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8 16a6 6 0 0 1 8 0"/><circle cx="12" cy="20" r="1"/></svg></div>
                 <h3>Mạng LAN / Wi-Fi</h3><p>Mất kết nối, mạng chậm hoặc không truy cập được Internet.</p>
+                <a class="incident-action" href="{% url 'tickets:create' %}?category=network">Báo sự cố mạng <span aria-hidden="true">↗</span></a>
             </article>
         </div>
         <div class="col-sm-6 col-xl-3">
             <article class="incident-card">
                 <div class="incident-icon icon-purple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6Z"/><path d="m8 12 3 3 5-6"/></svg></div>
                 <h3>Kết nối VPN</h3><p>Không kết nối được VPN hoặc không vào được tài nguyên nội bộ.</p>
+                <a class="incident-action" href="{% url 'tickets:create' %}?category=vpn">Báo sự cố VPN <span aria-hidden="true">↗</span></a>
             </article>
         </div>
         <div class="col-sm-6 col-xl-3">
             <article class="incident-card">
                 <div class="incident-icon icon-teal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H3V8h18v9h-4"/><path d="M7 13h10v8H7ZM17 11h1"/></svg></div>
                 <h3>Máy in</h3><p>Không tìm thấy máy in mạng hoặc không gửi được lệnh in.</p>
+                <a class="incident-action" href="{% url 'tickets:create' %}?category=printer">Báo sự cố máy in <span aria-hidden="true">↗</span></a>
             </article>
         </div>
         <div class="col-sm-6 col-xl-3">
             <article class="incident-card">
                 <div class="incident-icon icon-orange"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12h.01M12 12h.01M17 12h.01" stroke-width="3"/></svg></div>
                 <h3>Sự cố khác</h3><p>Các vấn đề mạng hoặc thiết bị chưa thuộc những nhóm trên.</p>
+                <a class="incident-action" href="{% url 'tickets:create' %}?category=other">Báo sự cố khác <span aria-hidden="true">↗</span></a>
             </article>
         </div>
     </div>

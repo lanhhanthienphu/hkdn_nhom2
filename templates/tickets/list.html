@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Ticket của tôi · Helpdesk Nhóm 2{% endblock %}
+{% block page_title %}Ticket của tôi{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">THEO DÕI YÊU CẦU</p><h1>Ticket của tôi</h1><p>Xem trạng thái và tiếp tục trao đổi về các sự cố đã báo.</p></div><a class="btn btn-primary" href="{% url 'tickets:create' %}"><span aria-hidden="true">+</span> Tạo ticket</a></div>
+{% include 'tickets/_demo_banner.html' %}
+<div class="ticket-stats" aria-label="Tổng quan ticket mẫu">
+    <div class="stat-card"><span>Tổng ticket</span><strong>{{ stats.total }}</strong><small>Trong phiên xem thử</small></div>
+    <div class="stat-card"><span><i class="status-dot dot-new" aria-hidden="true"></i> Chờ tiếp nhận</span><strong>{{ stats.new }}</strong><small>Yêu cầu mới</small></div>
+    <div class="stat-card"><span><i class="status-dot dot-active" aria-hidden="true"></i> Đang xử lý</span><strong>{{ stats.active }}</strong><small>Đã được tiếp nhận</small></div>
+    <div class="stat-card"><span><i class="status-dot dot-resolved" aria-hidden="true"></i> Đã giải quyết</span><strong>{{ stats.resolved }}</strong><small>Đã xử lý hoặc đã đóng</small></div>
+</div>
+<section class="surface ticket-list-panel" aria-labelledby="list-heading">
+    <div class="surface-heading"><h2 id="list-heading">Danh sách ticket</h2><span class="result-count">{{ page_obj.paginator.count }} kết quả</span></div>
+    <form method="get" class="ticket-filters" role="search" aria-label="Tìm ticket">
+        <div class="filter-search"><label for="ticket-query">Tìm kiếm</label><input class="form-control" id="ticket-query" name="q" type="search" maxlength="150" value="{{ query }}" placeholder="Mã ticket, tiêu đề hoặc phòng…"></div>
+        <div><label for="ticket-status">Trạng thái</label><select class="form-select" name="status" id="ticket-status"><option value="">Tất cả trạng thái</option>{% for value,label in statuses %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div><label for="ticket-category">Nhóm sự cố</label><select class="form-select" name="category" id="ticket-category"><option value="">Tất cả nhóm</option>{% for value,label in categories %}<option value="{{ value }}"{% if category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div><label for="ticket-sort">Sắp xếp</label><select class="form-select" name="sort" id="ticket-sort"><option value="newest"{% if sort == 'newest' %} selected{% endif %}>Mới nhất</option><option value="oldest"{% if sort == 'oldest' %} selected{% endif %}>Cũ nhất</option><option value="priority"{% if sort == 'priority' %} selected{% endif %}>Ưu tiên cao trước</option></select></div>
+        <button class="btn btn-primary" type="submit">Áp dụng</button>
+    </form>
+    {% if has_filters %}<p class="filter-summary">Đang lọc kết quả{% if query %} cho “{{ query }}”{% endif %}. <a href="{% url 'tickets:list' %}">Xóa bộ lọc</a></p>{% endif %}
+    {% if page_obj %}
+        <div class="ticket-table-heading" aria-hidden="true"><span>YÊU CẦU HỖ TRỢ</span><span>ĐỘ ƯU TIÊN</span><span>TRẠNG THÁI</span><span>NGÀY TẠO</span></div>
+        <ul class="ticket-rows">
+            {% for ticket in page_obj %}
+            <li class="ticket-row">
+                <div class="ticket-summary"><span class="ticket-code">{{ ticket.code }}</span><h3><a href="{% url 'tickets:detail' ticket.id %}">{{ ticket.title }}</a></h3><p>{{ ticket.category_label }} <span aria-hidden="true">·</span> {{ ticket.location }}</p></div>
+                <div class="ticket-row-priority"><span class="mobile-label">Ưu tiên</span><span class="priority-label priority-{{ ticket.priority }}"><i aria-hidden="true"></i>{{ ticket.priority_label }}</span></div>
+                <div class="ticket-row-status"><span class="mobile-label">Trạng thái</span><span class="status-pill status-{{ ticket.status }}">{{ ticket.status_label }}</span></div>
+                <div class="ticket-row-date"><span class="mobile-label">Ngày tạo</span><time datetime="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:'d/m/Y' }}<small>{{ ticket.created_at|date:'H:i' }}</small></time></div>
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="ticket-pagination"><p>Hiển thị {{ page_obj.start_index }}–{{ page_obj.end_index }} / {{ page_obj.paginator.count }} ticket</p><nav aria-label="Phân trang ticket">{% if page_obj.has_previous %}<a class="pagination-button" href="?{{ filter_query }}&amp;page={{ page_obj.previous_page_number }}" aria-label="Trang trước">←</a>{% endif %}<span>Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="pagination-button" href="?{{ filter_query }}&amp;page={{ page_obj.next_page_number }}" aria-label="Trang sau">→</a>{% endif %}</nav></div>
+    {% else %}
+        <div class="ticket-empty"><div class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5Z"/><path d="M8 8h8M8 12h5"/></svg></div>{% if has_filters %}<h3>Không tìm thấy ticket phù hợp</h3><p>Thử từ khóa khác hoặc bỏ bớt điều kiện lọc.</p><a class="btn btn-outline-primary" href="{% url 'tickets:list' %}">Xóa bộ lọc</a>{% else %}<h3>Bạn chưa có ticket nào</h3><p>Tạo ticket đầu tiên khi cần hỗ trợ sự cố mạng.</p><a class="btn btn-primary" href="{% url 'tickets:create' %}">Tạo ticket</a>{% endif %}</div>
+    {% endif %}
+</section>
+{% endblock %}
