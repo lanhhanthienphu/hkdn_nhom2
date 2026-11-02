@@ -1,6 +1,0 @@
-# Local Frontend 1 demo with SQLite; versions match the team's requirements.txt.
-# Use requirements.txt when integrating the full backend / MySQL environment.
-asgiref==3.13.0
-Django==6.1.2
-sqlparse==0.6.0
-tzdata==2026.5
