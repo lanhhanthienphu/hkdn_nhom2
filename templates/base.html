@@ -38,6 +38,16 @@
                     Ticket của tôi
                 </a>
                 <p class="nav-caption mt-4">HƯỚNG DẪN</p>
+                <a
+                    class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}"
+                    href="{% url 'kb:article_list' %}"
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 3h16v18H4Z"/>
+                        <path d="M8 7h8M8 11h8M8 15h5"/>
+                    </svg>
+                    Kho kiến thức
+                </a>
                 <a class="sidebar-link" href="{% url 'tickets:home' %}#incident-types">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     Nhóm sự cố
@@ -59,7 +69,31 @@
                 </button>
                 <span class="topbar-title">{% block page_title %}Trang chủ{% endblock %}</span>
             </div>
-            <span class="portal-label">Cổng hỗ trợ nội bộ</span>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                {% if request.user.is_authenticated %}
+                    <div class="text-end">
+                        <span>
+                            Xin chào, <strong>{{ request.user.username }}</strong>
+                        </span>
+                        {% if request.user.email %}
+                            <small class="d-block text-secondary">
+                                {{ request.user.email }}
+                            </small>
+                        {% endif %}
+                    </div>
+
+                    <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">
+                            Đăng xuất
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-primary btn-sm">
+                        Đăng nhập
+                    </a>
+                {% endif %}
+            </div>
         </header>
         <main id="main-content" class="main-content" tabindex="-1">
             {% if messages %}
