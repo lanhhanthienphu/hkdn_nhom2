@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Tạo ticket · Helpdesk Nhóm 2{% endblock %}
+{% block page_title %}Tạo ticket{% endblock %}
+{% block content %}
+<nav class="ticket-breadcrumb" aria-label="Đường dẫn"><a href="{% url 'tickets:home' %}">Trang chủ</a><span aria-hidden="true">/</span><span aria-current="page">Tạo ticket</span></nav>
+<div class="page-heading"><div><p class="eyebrow">GỬI YÊU CẦU HỖ TRỢ</p><h1>Tạo ticket mới</h1><p>Một vài thông tin cụ thể sẽ giúp việc hỗ trợ thuận lợi hơn.</p></div></div>
+{% include 'tickets/_demo_banner.html' %}
+<div class="ticket-layout">
+    <section class="surface" aria-labelledby="form-heading">
+        <div class="surface-heading"><h2 id="form-heading">Thông tin sự cố</h2><p>Các trường có dấu <span class="required-mark">*</span> là bắt buộc.</p></div>
+        <form method="post" enctype="multipart/form-data" class="ticket-form" data-ticket-form>
+            {% csrf_token %}
+            {% include 'tickets/_errors.html' %}
+            {% include 'tickets/_field.html' with field=form.title %}
+            <div class="form-grid">
+                {% include 'tickets/_field.html' with field=form.category %}
+                {% include 'tickets/_field.html' with field=form.priority %}
+            </div>
+            {% include 'tickets/_field.html' with field=form.location %}
+            <div>
+                {% include 'tickets/_field.html' with field=form.description %}
+                <p class="character-count" data-count-output>0 / 5.000 ký tự</p>
+            </div>
+            <div class="attachment-box">
+                {% include 'tickets/_field.html' with field=form.attachment %}
+                <p class="selected-file" data-file-feedback aria-live="polite"></p>
+            </div>
+            <div class="form-actions"><a class="btn btn-outline-secondary" href="{% url 'tickets:list' %}">Hủy</a><button class="btn btn-primary" type="submit" data-submit-button>Tạo ticket xem thử <span aria-hidden="true">→</span></button></div>
+        </form>
+    </section>
+    <aside class="ticket-aside" aria-label="Hướng dẫn báo sự cố">
+        <section class="surface aside-card"><span class="aside-icon" aria-hidden="true">i</span><h2>Mô tả rõ, hỗ trợ nhanh</h2><ul class="help-list"><li>Ghi đúng phòng hoặc vị trí xảy ra sự cố.</li><li>Cho biết lỗi bắt đầu lúc nào và ảnh hưởng đến bao nhiêu người.</li><li>Liệt kê cách bạn đã thử: khởi động lại, đổi dây mạng, kết nối lại Wi-Fi…</li><li>Đính kèm ảnh thông báo lỗi nếu có. Tránh đưa mật khẩu vào ảnh.</li></ul><a href="{% url 'tickets:home' %}#report-guide" class="text-link">Xem hướng dẫn báo sự cố →</a></section>
+        <section class="priority-guide"><h2>Chọn độ ưu tiên</h2><p><strong>Bình thường:</strong> vấn đề ảnh hưởng riêng bạn nhưng vẫn có thể tiếp tục công việc.</p><p><strong>Cao / Khẩn cấp:</strong> gián đoạn tiết học hoặc nhiều người cùng mất kết nối.</p></section>
+    </aside>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/tickets.js' %}" defer></script>{% endblock %}

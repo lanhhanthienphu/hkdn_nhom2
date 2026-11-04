@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ ticket.code }} · Helpdesk Nhóm 2{% endblock %}
+{% block page_title %}Chi tiết ticket{% endblock %}
+{% block content %}
+<nav class="ticket-breadcrumb" aria-label="Đường dẫn"><a href="{% url 'tickets:list' %}">Ticket của tôi</a><span aria-hidden="true">/</span><span aria-current="page">{{ ticket.code }}</span></nav>
+<div class="page-heading detail-heading"><div><p class="eyebrow">{{ ticket.code }}</p><h1>{{ ticket.title }}</h1><p>Tạo lúc {{ ticket.created_at|date:'H:i, d/m/Y' }} <span aria-hidden="true">·</span> Ticket xem thử</p></div><span class="status-pill status-{{ ticket.status }}">{{ ticket.status_label }}</span></div>
+{% include 'tickets/_demo_banner.html' %}
+<section class="surface progress-panel" aria-labelledby="progress-heading"><h2 id="progress-heading">Tiến độ xử lý</h2><ol class="ticket-progress">{% for step in ticket.steps %}<li class="{% if step.done %}step-done{% endif %}{% if step.current %} step-current{% endif %}"{% if step.current %} aria-current="step"{% endif %}><span class="progress-number" aria-hidden="true">{{ forloop.counter }}</span><span>{{ step.label }}</span></li>{% endfor %}</ol></section>
+<div class="ticket-layout detail-layout">
+    <div class="detail-main">
+        <section class="surface" aria-labelledby="description-heading"><div class="surface-heading"><h2 id="description-heading">Mô tả sự cố</h2></div><div class="surface-body"><div class="ticket-description">{{ ticket.description|linebreaksbr }}</div>{% if ticket.attachment %}<div class="attachment-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14V9Z"/><path d="M13 3v6h6M8 13h8M8 17h5"/></svg><div><strong>{{ ticket.attachment.name }}</strong><span>{{ ticket.attachment.size|filesizeformat }} · Chỉ ghi nhận thông tin file; chưa có nội dung để tải.</span></div></div>{% endif %}</div></section>
+        <section id="conversation" class="surface" aria-labelledby="conversation-heading"><div class="surface-heading"><h2 id="conversation-heading">Trao đổi</h2><span class="result-count">{{ ticket.replies|length }} phản hồi</span></div><div class="surface-body">
+            {% if ticket.replies %}<ol class="reply-list">{% for reply in ticket.replies %}<li class="reply reply-{{ reply.role }}"><span class="reply-avatar" aria-hidden="true">{% if reply.role == 'staff' %}KT{% else %}B{% endif %}</span><div class="reply-body"><div class="reply-meta"><strong>{{ reply.author }}</strong><time datetime="{{ reply.at|date:'c' }}">{{ reply.at|date:'H:i, d/m/Y' }}</time></div><p>{{ reply.content|linebreaksbr }}</p></div></li>{% endfor %}</ol>{% else %}<p class="conversation-empty">Chưa có phản hồi. Bạn có thể bổ sung thông tin về sự cố ở bên dưới.</p>{% endif %}
+            {% if ticket.status == 'closed' %}<div class="closed-notice">Ticket đã đóng. Nếu gặp sự cố mới, bạn có thể <a href="{% url 'tickets:create' %}">tạo ticket khác</a>.</div>{% else %}<form method="post" class="reply-form" data-ticket-form>{% csrf_token %}{% include 'tickets/_errors.html' %}{% include 'tickets/_field.html' with field=form.content %}<p class="form-text">Phản hồi chỉ được lưu để xem thử trong phiên này.</p><div class="reply-actions"><button class="btn btn-primary" type="submit" data-submit-button>Thêm phản hồi xem thử</button></div></form>{% endif %}
+        </div></section>
+    </div>
+    <aside class="ticket-aside" aria-label="Thông tin và lịch sử ticket">
+        <section class="surface aside-card"><h2>Thông tin ticket</h2><dl class="ticket-properties"><div><dt>Mã ticket</dt><dd>{{ ticket.code }}</dd></div><div><dt>Nhóm sự cố</dt><dd>{{ ticket.category_label }}</dd></div><div><dt>Vị trí</dt><dd>{{ ticket.location }}</dd></div><div><dt>Độ ưu tiên</dt><dd><span class="priority-label priority-{{ ticket.priority }}"><i aria-hidden="true"></i>{{ ticket.priority_label }}</span></dd></div><div><dt>Người phụ trách</dt><dd>{% if ticket.status == 'new' %}Chưa phân công{% else %}Kỹ thuật viên (mẫu){% endif %}</dd></div></dl></section>
+        <section class="surface aside-card"><h2>Lịch sử hoạt động</h2><ol class="activity-list">{% for event in ticket.events %}<li><strong>{{ event.title }}</strong><time datetime="{{ event.at|date:'c' }}">{{ event.at|date:'H:i, d/m/Y' }}</time></li>{% endfor %}</ol></section>
+    </aside>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/tickets.js' %}" defer></script>{% endblock %}
