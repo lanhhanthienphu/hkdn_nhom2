@@ -1,0 +1,5 @@
+{% extends 'errors/base.html' %}
+{% block title %}Không tìm thấy · Helpdesk{% endblock %}
+{% block code %}404{% endblock %}
+{% block heading %}Không tìm thấy nội dung{% endblock %}
+{% block description %}{{ error_message|default:'Liên kết có thể đã thay đổi hoặc nội dung không còn tồn tại. Hãy quay về trang chủ để tiếp tục.' }}{% endblock %}

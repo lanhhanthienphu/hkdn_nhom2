@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'tickets.apps.TicketsConfig',
     'kb.apps.KbConfig',
     'accounts',
 ]
@@ -53,6 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.middleware.LoginRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'helpdesk_system.urls'
@@ -110,7 +112,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'vi'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 USE_I18N = True
 
@@ -132,16 +134,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'accounts.middleware.LoginRequiredMiddleware',
-]
-LOGIN_URL = '/accounts/login/'  # Đường dẫn đến trang đăng nhập của bạn
-LOGIN_REDIRECT_URL = '/'        # Trang đích sau khi đăng nhập thành công (ví dụ: trang chủ / danh sách ticket)
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'tickets:home'
+LOGOUT_REDIRECT_URL = 'accounts:login'
+CSRF_FAILURE_VIEW = 'helpdesk_system.error_views.csrf_failure'

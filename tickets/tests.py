@@ -1,14 +1,17 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .demo_store import MAX_REPLIES, MAX_TICKETS, SESSION_KEY
+from .demo_store import MAX_REPLIES, MAX_TICKETS, OWNER_KEY, SESSION_KEY
 from .forms import MAX_ATTACHMENT_BYTES, TicketForm
 
 
 @override_settings(FRONTEND_DEMO_ENABLED=True)
 class FrontendTicketTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(username='frontend-user')
+        self.client.force_login(self.user)
         self.data = {
             'title': 'Wi-Fi không kết nối được tại A.201', 'category': 'network',
             'priority': 'high', 'location': 'A.201',
@@ -30,7 +33,9 @@ class FrontendTicketTests(TestCase):
         self.assertContains(self.client.get(url), self.data['title'])
         response = self.client.get(reverse('tickets:list'), {'q': 'HD-1007'})
         self.assertEqual(response.context['page_obj'].paginator.count, 1)
-        self.assertEqual(Client().get(url).status_code, 404)
+        other = Client()
+        other.force_login(get_user_model().objects.create_user(username='another-user'))
+        self.assertEqual(other.get(url).status_code, 404)
         self.assertEqual(len(self.client.session[SESSION_KEY]), 7)
 
     def test_invalid_form_keeps_values_and_does_not_create_ticket(self):
@@ -70,6 +75,7 @@ class FrontendTicketTests(TestCase):
     def test_empty_ticket_state(self):
         session = self.client.session
         session[SESSION_KEY] = []
+        session[OWNER_KEY] = str(self.user.pk)
         session.save()
         self.assertContains(self.client.get(reverse('tickets:list')), 'Bạn chưa có ticket nào')
 
@@ -95,6 +101,7 @@ class FrontendTicketTests(TestCase):
 
     def test_csrf_required(self):
         client = Client(enforce_csrf_checks=True)
+        client.force_login(self.user)
         client.get(reverse('tickets:create'))
         self.assertEqual(client.post(reverse('tickets:create'), self.data).status_code, 403)
         response = client.post(reverse('tickets:create'), {
@@ -123,3 +130,64 @@ class FrontendTicketTests(TestCase):
         for name in ('list', 'create'):
             self.assertEqual(self.client.get(reverse(f'tickets:{name}')).status_code, 404)
         self.assertEqual(self.client.get(reverse('tickets:detail', args=[1006])).status_code, 404)
+
+    def test_priority_filter_combines_with_status_category_and_search(self):
+        response = self.client.get(reverse('tickets:list'), {
+            'priority': 'urgent', 'category': 'network', 'status': 'new', 'q': 'B.302',
+        })
+        self.assertEqual([t['id'] for t in response.context['page_obj']], [1003])
+        self.assertEqual(response.context['priority'], 'urgent')
+        response = self.client.get(reverse('tickets:list'), {'priority': 'unknown'})
+        self.assertEqual(response.context['priority'], '')
+        self.assertEqual(response.context['page_obj'].paginator.count, 6)
+
+    def test_priority_filter_survives_pagination(self):
+        for i in range(3):
+            self.client.post(reverse('tickets:create'), {**self.data, 'priority': 'normal', 'title': f'Ticket bình thường {i}'})
+        response = self.client.get(reverse('tickets:list'), {'priority': 'normal'})
+        self.assertEqual(response.context['page_obj'].paginator.count, 6)
+        self.assertContains(response, 'priority=normal&amp;page=2')
+        page2 = self.client.get(reverse('tickets:list'), {'priority': 'normal', 'page': 2})
+        self.assertEqual(len(page2.context['page_obj']), 1)
+        self.assertEqual(page2.context['page_obj'][0]['priority'], 'normal')
+
+    def test_home_counts_recent_ticket_and_published_articles(self):
+        from kb.models import Article
+        article = Article.objects.create(title='Hướng dẫn Wi-Fi chính thức', content='Nội dung đã được nhóm xuất bản.', is_published=True)
+        Article.objects.create(title='Bài nháp chưa xuất bản', content='Nội dung chưa được xem.', is_published=False)
+        self.client.post(reverse('tickets:create'), self.data)
+        response = self.client.get(reverse('tickets:home'))
+        self.assertEqual(response.context['stats'], {'total': 7, 'new': 3, 'in_progress': 2, 'resolved': 1, 'closed': 1})
+        self.assertEqual(response.context['recent_tickets'][0]['id'], 1007)
+        self.assertContains(response, article.title)
+        self.assertNotContains(response, 'Bài nháp chưa xuất bản')
+        self.assertContains(response, reverse('kb:article_detail', args=[article.pk]))
+        self.assertContains(response, 'status=in_progress')
+
+    def test_sample_owner_is_reset_when_the_logged_in_user_changes(self):
+        self.client.post(reverse('tickets:create'), self.data)
+        session = self.client.session
+        session[OWNER_KEY] = 'different-account'
+        session.save()
+        response = self.client.get(reverse('tickets:list'))
+        self.assertEqual(response.context['page_obj'].paginator.count, 6)
+        self.assertEqual(self.client.session[OWNER_KEY], str(self.user.pk))
+
+    def test_named_reporter_search_and_detail(self):
+        self.client.post(reverse('tickets:create'), self.data)
+        response = self.client.get(reverse('tickets:list'), {'q': self.user.username})
+        self.assertEqual(response.context['page_obj'].paginator.count, 7)
+        self.assertContains(self.client.get(reverse('tickets:detail', args=[1007])), self.user.username)
+
+    def test_authenticated_pages_are_not_cached_and_missing_ticket_is_friendly(self):
+        response = self.client.get(reverse('tickets:home'))
+        self.assertIn('no-store', response.headers['Cache-Control'])
+        response = self.client.get(reverse('tickets:detail', args=[9999]))
+        self.assertContains(response, 'Không tìm thấy nội dung', status_code=404)
+        self.assertNotContains(response, 'Using the URLconf', status_code=404)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=['testserver'])
+    def test_unknown_page_uses_shared_error_template(self):
+        response = self.client.get('/not-a-real-page/')
+        self.assertContains(response, 'Không tìm thấy nội dung', status_code=404)
+        self.assertContains(response, 'Về trang chủ', status_code=404)

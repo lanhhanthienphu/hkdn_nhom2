@@ -1,0 +1,6 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}Helpdesk{% endblock %}</title><link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}"><link rel="stylesheet" href="{% static 'css/site.css' %}"><link rel="stylesheet" href="{% static 'css/tickets.css' %}"><link rel="stylesheet" href="{% static 'css/portal.css' %}"></head>
+<body class="error-page"><main class="error-card"><a class="brand-link" href="{% url 'tickets:home' %}"><span class="brand-mark" aria-hidden="true">H</span><strong>Helpdesk</strong></a><p class="error-code" aria-hidden="true">{% block code %}{% endblock %}</p><h1>{% block heading %}{% endblock %}</h1><p class="error-description">{% block description %}{% endblock %}</p><div class="error-actions"><a class="btn btn-primary" href="{% url 'tickets:home' %}">Về trang chủ</a><a class="btn btn-outline-secondary" href="{% url 'accounts:login' %}">Đăng nhập</a></div></main></body>
+</html>
