@@ -60,7 +60,31 @@
                 </button>
                 <span class="topbar-title">{% block page_title %}Trang chủ{% endblock %}</span>
             </div>
-            <span class="portal-label">Cổng hỗ trợ nội bộ</span>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                {% if request.user.is_authenticated %}
+                    <div class="text-end">
+                        <span>
+                            Xin chào, <strong>{{ request.user.username }}</strong>
+                        </span>
+                        {% if request.user.email %}
+                            <small class="d-block text-secondary">
+                                {{ request.user.email }}
+                            </small>
+                        {% endif %}
+                    </div>
+
+                    <form method="post" action="{% url 'accounts:logout' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">
+                            Đăng xuất
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="btn btn-primary btn-sm">
+                        Đăng nhập
+                    </a>
+                {% endif %}
+            </div>
         </header>
         <main id="main-content" class="main-content" tabindex="-1">
             {% block content %}{% endblock %}
