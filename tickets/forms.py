@@ -1,12 +1,11 @@
-from pathlib import Path
-
 from django import forms
 
+from .attachment_validators import (
+    ATTACHMENT_EXTENSIONS,
+    MAX_ATTACHMENT_BYTES,
+    validate_attachment,
+)
 from .demo_store import CATEGORIES, PRIORITIES
-
-
-MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
-ATTACHMENT_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf', '.txt', '.log'}
 
 
 class TicketForm(forms.Form):
@@ -47,12 +46,8 @@ class TicketForm(forms.Form):
 
     def clean_attachment(self):
         attachment = self.cleaned_data.get('attachment')
-        if not attachment:
-            return None
-        if attachment.size > MAX_ATTACHMENT_BYTES:
-            raise forms.ValidationError('File vượt quá 10 MB. Vui lòng chọn file nhỏ hơn.')
-        if Path(attachment.name).suffix.lower() not in ATTACHMENT_EXTENSIONS:
-            raise forms.ValidationError('Chỉ chấp nhận file JPG, PNG, PDF, TXT hoặc LOG.')
+        if attachment:
+            validate_attachment(attachment)
         return attachment
 
 
