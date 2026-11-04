@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -9,10 +10,21 @@ from .forms import MAX_ATTACHMENT_BYTES, TicketForm
 @override_settings(FRONTEND_DEMO_ENABLED=True)
 class FrontendTicketTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="frontend_test_user",
+            password="FrontendTest_2026!",
+        )
+        self.client.force_login(self.user)
+
         self.data = {
-            'title': 'Wi-Fi không kết nối được tại A.201', 'category': 'network',
-            'priority': 'high', 'location': 'A.201',
-            'description': 'Sự cố xảy ra lúc đầu giờ học. Đã thử kết nối lại nhưng vẫn chưa truy cập được Internet.',
+            'title': 'Wi-Fi không kết nối được tại A.201',
+            'category': 'network',
+            'priority': 'high',
+            'location': 'A.201',
+            'description': (
+                'Sự cố xảy ra lúc đầu giờ học. Đã thử kết nối lại '
+                'nhưng vẫn chưa truy cập được Internet.'
+            ),
         }
 
     def test_navigation_and_category_location_prefill(self):
@@ -30,7 +42,9 @@ class FrontendTicketTests(TestCase):
         self.assertContains(self.client.get(url), self.data['title'])
         response = self.client.get(reverse('tickets:list'), {'q': 'HD-1007'})
         self.assertEqual(response.context['page_obj'].paginator.count, 1)
-        self.assertEqual(Client().get(url).status_code, 404)
+        other_client = Client()
+        other_client.force_login(self.user)
+        self.assertEqual(other_client.get(url).status_code, 404)
         self.assertEqual(len(self.client.session[SESSION_KEY]), 7)
 
     def test_invalid_form_keeps_values_and_does_not_create_ticket(self):
@@ -95,6 +109,7 @@ class FrontendTicketTests(TestCase):
 
     def test_csrf_required(self):
         client = Client(enforce_csrf_checks=True)
+        client.force_login(self.user)
         client.get(reverse('tickets:create'))
         self.assertEqual(client.post(reverse('tickets:create'), self.data).status_code, 403)
         response = client.post(reverse('tickets:create'), {
