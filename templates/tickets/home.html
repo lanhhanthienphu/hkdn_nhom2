@@ -3,21 +3,47 @@
 {% block title %}Trang chủ · Helpdesk Nhóm 2{% endblock %}
 
 {% block content %}
+<div class="page-heading home-heading"><div><p class="eyebrow">KHÔNG GIAN CÁ NHÂN</p><h1>Xin chào, {{ request.user.get_short_name|default:request.user.get_username }}!</h1><p>Theo dõi yêu cầu hỗ trợ và tìm hướng dẫn xử lý sự cố của bạn.</p></div></div>
+{% if ticket_demo_enabled %}
+    {% include 'tickets/_demo_banner.html' %}
+    {% include 'tickets/_stats.html' %}
+{% else %}
+    <div class="demo-banner" role="note"><p>Dữ liệu ticket chưa được kết nối với backend. Mục tổng quan sẽ xuất hiện khi nhóm tích hợp xong.</p></div>
+{% endif %}
 <section class="welcome-panel" aria-labelledby="welcome-title">
     <div class="welcome-copy">
         <p class="eyebrow">TRUNG TÂM HỖ TRỢ MẠNG</p>
-        <h1 id="welcome-title">Bạn cần hỗ trợ<br class="d-none d-sm-block"> về sự cố mạng?</h1>
+        <h2 id="welcome-title">Bạn cần hỗ trợ<br class="d-none d-sm-block"> về sự cố mạng?</h2>
         <p class="welcome-description">Mô tả sự cố, theo dõi tiến độ và trao đổi thông tin trên cùng một ticket. Bắt đầu bằng việc chọn nhóm sự cố bạn đang gặp.</p>
         <div class="welcome-actions">
             <a href="{% url 'tickets:create' %}" class="btn btn-light guide-button">Tạo ticket <span aria-hidden="true">→</span></a>
             <a href="{% url 'tickets:list' %}" class="btn btn-outline-light guide-button">Ticket của tôi</a>
         </div>
-        <p class="welcome-demo-note">Các trang ticket hiện dùng dữ liệu mẫu để xem thử giao diện.</p>
+        {% if ticket_demo_enabled %}<p class="welcome-demo-note">Các trang ticket hiện dùng dữ liệu mẫu để xem thử giao diện.</p>{% endif %}
     </div>
     <div class="welcome-note">
         <span class="note-icon" aria-hidden="true">i</span>
         <p class="mb-2 fw-semibold">Thông tin rõ ràng giúp hỗ trợ nhanh hơn</p>
         <p class="mb-0">Ghi lại thời điểm xảy ra lỗi, thiết bị đang dùng và thông báo lỗi hiển thị trên màn hình.</p>
+    </div>
+</section>
+
+{% if ticket_demo_enabled %}
+<section class="content-section" aria-labelledby="recent-title">
+    <div class="section-heading"><div><p class="eyebrow text-secondary">YÊU CẦU CỦA BẠN</p><h2 id="recent-title">Ticket gần đây</h2></div><a class="text-link" href="{% url 'tickets:list' %}">Xem tất cả →</a></div>
+    <div class="surface">
+        {% for ticket in recent_tickets %}
+        <article class="recent-ticket"><div><span class="ticket-code">{{ ticket.code }}</span><h3><a href="{% url 'tickets:detail' ticket.id %}">{{ ticket.title }}</a></h3><p>{{ ticket.location }} · {{ ticket.created_at|date:'H:i, d/m/Y' }}</p></div><span class="status-pill status-{{ ticket.status }}">{{ ticket.status_label }}</span></article>
+        {% empty %}<div class="home-empty"><h3>Bạn chưa có ticket nào</h3><p>Khi cần hỗ trợ, hãy tạo ticket để theo dõi quá trình xử lý.</p><a class="btn btn-primary" href="{% url 'tickets:create' %}">Tạo ticket đầu tiên</a></div>{% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="content-section" aria-labelledby="kb-home-title">
+    <div class="section-heading"><div><p class="eyebrow text-secondary">TỰ KIỂM TRA TRƯỚC KHI BÁO LỖI</p><h2 id="kb-home-title">Hướng dẫn hữu ích</h2></div><a class="text-link" href="{% url 'kb:article_list' %}">Kho kiến thức →</a></div>
+    <div class="home-articles">
+        {% for article in articles %}<article class="surface home-article"><span class="article-label">HƯỚNG DẪN</span><h3><a href="{% url 'kb:article_detail' article.pk %}">{{ article.title }}</a></h3><p>{{ article.content|truncatewords:22 }}</p><a class="text-link" href="{% url 'kb:article_detail' article.pk %}">Đọc hướng dẫn <span aria-hidden="true">→</span><span class="visually-hidden">: {{ article.title }}</span></a></article>
+        {% empty %}<div class="surface home-kb-empty"><p>Nhóm đang bổ sung các bài hướng dẫn. Bạn vẫn có thể tạo ticket khi gặp sự cố.</p><a class="text-link" href="{% url 'kb:article_list' %}">Mở Kho kiến thức →</a></div>{% endfor %}
     </div>
 </section>
 

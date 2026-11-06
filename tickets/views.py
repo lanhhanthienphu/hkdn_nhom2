@@ -1,46 +1,58 @@
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.cache import never_cache
+
+from kb.models import Article
 
 from . import demo_store
 from .forms import ReplyForm, TicketForm
 
 
 @require_GET
+@never_cache
 def home(request):
-    return render(request, 'tickets/home.html')
+    enabled = demo_store.is_enabled()
+    tickets = demo_store.get_tickets(request) if enabled else []
+    recent = sorted(tickets, key=lambda t: t['created_at'], reverse=True)[:3]
+    return render(request, 'tickets/home.html', {
+        'ticket_demo_enabled': enabled,
+        'stats': demo_store.summary(tickets),
+        'recent_tickets': [demo_store.present(t) for t in recent],
+        'articles': Article.objects.filter(is_published=True).order_by('-updated_at', '-pk')[:3],
+    })
 
 
 @require_GET
+@never_cache
 def ticket_list(request):
     tickets = demo_store.get_tickets(request)
-    stats = {
-        'total': len(tickets),
-        'new': sum(t['status'] == 'new' for t in tickets),
-        'active': sum(t['status'] == 'in_progress' for t in tickets),
-        'resolved': sum(t['status'] in ('resolved', 'closed') for t in tickets),
-    }
+    stats = demo_store.summary(tickets)
     query = request.GET.get('q', '').strip()[:150]
     status = request.GET.get('status', '')
     category = request.GET.get('category', '')
+    priority = request.GET.get('priority', '')
     sort = request.GET.get('sort', 'newest')
     if status not in dict(demo_store.STATUSES):
         status = ''
     if category not in dict(demo_store.CATEGORIES):
         category = ''
+    if priority not in dict(demo_store.PRIORITIES):
+        priority = ''
     if sort not in ('newest', 'oldest', 'priority'):
         sort = 'newest'
     if query:
         tickets = [t for t in tickets if query.casefold() in
-                   f"HD-{t['id']} {t['title']} {t['location']}".casefold()]
+                   f"HD-{t['id']} {t['title']} {t['location']} {t.get('reporter', '')}".casefold()]
     if status:
         tickets = [t for t in tickets if t['status'] == status]
     if category:
         tickets = [t for t in tickets if t['category'] == category]
+    if priority:
+        tickets = [t for t in tickets if t['priority'] == priority]
     if sort == 'priority':
         ranks = {key: index for index, (key, _) in enumerate(demo_store.PRIORITIES)}
         tickets.sort(key=lambda t: (ranks[t['priority']], t['created_at']), reverse=True)
@@ -53,11 +65,13 @@ def ticket_list(request):
         'page_obj': page, 'stats': stats, 'query': query, 'status': status,
         'category': category, 'sort': sort, 'statuses': demo_store.STATUSES,
         'categories': demo_store.CATEGORIES, 'filter_query': params.urlencode(),
-        'has_filters': bool(query or status or category),
+        'priority': priority, 'priorities': demo_store.PRIORITIES,
+        'has_filters': bool(query or status or category or priority),
     })
 
 
 @require_http_methods(['GET', 'POST'])
+@never_cache
 def ticket_create(request):
     tickets = demo_store.get_tickets(request)
     initial = {'location': request.GET.get('location', '')[:100]}
@@ -76,6 +90,7 @@ def ticket_create(request):
                 'id': max((t['id'] for t in tickets), default=1000) + 1,
                 **{key: data[key] for key in ('title', 'description', 'category', 'priority', 'location')},
                 'status': 'new', 'created_at': now, 'replies': [],
+                'reporter': request.user.get_full_name() or request.user.get_username(),
                 'attachment': {'name': attachment.name, 'size': attachment.size} if attachment else None,
                 'events': [{'title': 'Đã tạo ticket xem thử', 'at': now}],
             }
@@ -83,15 +98,19 @@ def ticket_create(request):
             demo_store.save_tickets(request, tickets)
             messages.success(request, 'Đã tạo ticket xem thử. Yêu cầu này chưa được gửi đến bộ phận kỹ thuật.')
             return redirect('tickets:detail', ticket_id=ticket['id'])
-    return render(request, 'tickets/create.html', {'form': form})
+    kb_query = {'network': 'Wi-Fi', 'vpn': 'VPN', 'printer': 'máy in'}.get(form['category'].value(), '')
+    return render(request, 'tickets/create.html', {'form': form, 'kb_query': kb_query})
 
 
 @require_http_methods(['GET', 'POST'])
+@never_cache
 def ticket_detail(request, ticket_id):
     tickets = demo_store.get_tickets(request)
     ticket = next((t for t in tickets if t['id'] == ticket_id), None)
     if ticket is None:
-        raise Http404('Không tìm thấy ticket trong phiên xem thử này.')
+        return render(request, '404.html', {
+            'error_message': 'Ticket này không tồn tại trong phiên của bạn hoặc phiên xem thử trước đó đã kết thúc.',
+        }, status=404)
     form = ReplyForm(request.POST if request.method == 'POST' else None)
     if request.method == 'POST' and form.is_valid():
         if ticket['status'] == 'closed':

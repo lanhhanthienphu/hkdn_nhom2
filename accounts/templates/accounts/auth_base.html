@@ -1,0 +1,28 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Tài khoản · Helpdesk{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/site.css' %}">
+    <link rel="stylesheet" href="{% static 'css/tickets.css' %}">
+    <link rel="stylesheet" href="{% static 'css/portal.css' %}">
+</head>
+<body class="auth-page">
+    <a class="skip-link" href="#auth-main">Đến nội dung chính</a>
+    <div class="auth-shell">
+        <aside class="auth-intro" aria-label="Giới thiệu Helpdesk">
+            <a class="brand-link" href="{% url 'tickets:home' %}"><span class="brand-mark" aria-hidden="true">H</span><span><strong>Helpdesk</strong><small>Hỗ trợ sự cố mạng</small></span></a>
+            <div class="auth-intro-copy"><p class="eyebrow">CỔNG HỖ TRỢ NỘI BỘ</p><h2>Mọi yêu cầu.<br>Một nơi theo dõi.</h2><p>Báo sự cố và theo dõi tiến độ hỗ trợ trong không gian cá nhân của bạn.</p><ul><li>Gửi yêu cầu hỗ trợ rõ ràng</li><li>Theo dõi tiến độ và trao đổi</li><li>Tra cứu hướng dẫn xử lý sự cố</li></ul></div>
+            <p class="auth-intro-footer">Đồ án Helpdesk · Nhóm 2</p>
+        </aside>
+        <main id="auth-main" class="auth-main" tabindex="-1">
+            <div class="auth-form-wrap">{% block content %}{% endblock %}</div>
+            <p class="auth-footer">Hệ thống tiếp nhận và xử lý sự cố mạng</p>
+        </main>
+    </div>
+    <script src="{% static 'js/auth.js' %}" defer></script>
+</body>
+</html>

@@ -12,6 +12,7 @@ from django.utils import timezone
 
 
 SESSION_KEY = 'frontend1_demo_tickets_v1'
+OWNER_KEY = 'frontend1_demo_owner_v1'
 MAX_TICKETS = 30
 MAX_REPLIES = 30
 CATEGORIES = [('network', 'Mạng LAN / Wi-Fi'), ('vpn', 'Kết nối VPN'),
@@ -22,13 +23,17 @@ STATUSES = [('new', 'Chờ tiếp nhận'), ('in_progress', 'Đang xử lý'),
             ('resolved', 'Đã xử lý'), ('closed', 'Đã đóng')]
 
 
+def is_enabled():
+    return getattr(settings, 'FRONTEND_DEMO_ENABLED', settings.DEBUG)
+
+
 def require_demo():
     # Demo pages are unavailable in production unless explicitly enabled.
-    if not getattr(settings, 'FRONTEND_DEMO_ENABLED', settings.DEBUG):
+    if not is_enabled():
         raise Http404('Giao diện xem thử chưa được bật.')
 
 
-def _fixtures():
+def _fixtures(reporter):
     examples = [
         (1006, 'Wi-Fi chập chờn trong giờ học', 'network', 'high', 'in_progress', 'A.201'),
         (1005, 'Máy in không nhận lệnh từ máy tính', 'printer', 'normal', 'new', 'Phòng giáo vụ'),
@@ -56,7 +61,7 @@ def _fixtures():
                            'at': (now - timedelta(days=index, hours=16)).isoformat()})
         tickets.append({
             'id': pk, 'title': title, 'category': category, 'priority': priority,
-            'status': status, 'location': location,
+            'status': status, 'location': location, 'reporter': reporter,
             'description': 'Đây là nội dung minh họa để kiểm tra giao diện. Kết nối bị gián đoạn trong lúc sử dụng. Đã thử kết nối lại nhưng tình trạng vẫn tiếp diễn.',
             'created_at': created, 'attachment': None, 'replies': replies, 'events': events,
         })
@@ -65,13 +70,23 @@ def _fixtures():
 
 def get_tickets(request):
     require_demo()
-    if SESSION_KEY not in request.session:
-        request.session[SESSION_KEY] = _fixtures()
+    owner = str(request.user.pk)
+    if SESSION_KEY not in request.session or request.session.get(OWNER_KEY) != owner:
+        reporter = request.user.get_full_name() or request.user.get_username()
+        request.session[SESSION_KEY] = _fixtures(reporter)
+        request.session[OWNER_KEY] = owner
     return deepcopy(request.session[SESSION_KEY])
 
 
 def save_tickets(request, tickets):
     request.session[SESSION_KEY] = tickets
+
+
+def summary(tickets):
+    return {
+        'total': len(tickets),
+        **{status: sum(t['status'] == status for t in tickets) for status, _ in STATUSES},
+    }
 
 
 def present(ticket):
