@@ -1,0 +1,5 @@
+{% extends 'errors/base.html' %}
+{% block title %}Không thể thực hiện yêu cầu · Helpdesk{% endblock %}
+{% block code %}403{% endblock %}
+{% block heading %}{{ error_title|default:'Bạn chưa có quyền truy cập' }}{% endblock %}
+{% block description %}{{ error_message|default:'Bạn không thể truy cập nội dung này bằng tài khoản hiện tại. Hãy kiểm tra lại tài khoản hoặc liên hệ quản trị viên.' }}{% endblock %}

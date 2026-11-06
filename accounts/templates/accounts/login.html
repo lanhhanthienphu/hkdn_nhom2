@@ -1,18 +1,15 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <title>Đăng nhập - Helpdesk System</title>
-</head>
-<body>
-    <div style="width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
-        <h2>Đăng nhập hệ thống</h2>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit">Đăng nhập</button>
-        </form>
-        <p>Chưa có tài khoản? <a href="{% url 'accounts:register' %}">Đăng ký ngay</a></p>
-    </div>
-</body>
-</html>
+{% extends 'accounts/auth_base.html' %}
+{% block title %}Đăng nhập · Helpdesk{% endblock %}
+{% block content %}
+<p class="eyebrow">CHÀO MỪNG TRỞ LẠI</p>
+<h1>Đăng nhập</h1>
+<p class="auth-subtitle">Vào không gian cá nhân để tiếp tục công việc của bạn.</p>
+<form method="post" class="auth-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% include 'tickets/_errors.html' %}
+    {% for field in form %}{% include 'accounts/_auth_field.html' %}{% endfor %}
+    <button class="btn btn-primary auth-submit" type="submit">Đăng nhập <span aria-hidden="true">→</span></button>
+</form>
+<p class="auth-switch">Chưa có tài khoản? <a href="{% url 'accounts:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Đăng ký tài khoản</a></p>
+{% endblock %}

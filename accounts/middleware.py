@@ -1,5 +1,5 @@
 # accounts/middleware.py
-from django.shortcuts import redirect
+from django.contrib.auth.views import redirect_to_login
 from django.urls import reverse, NoReverseMatch
 
 class LoginRequiredMiddleware:
@@ -27,7 +27,8 @@ class LoginRequiredMiddleware:
                 login_url = '/accounts/login/'
             
             # Chuyển hướng về trang đăng nhập kèm theo tham số 'next'
-            return redirect(f"{login_url}?next={path}")
+            # Keep query parameters (e.g. location from a classroom QR link).
+            return redirect_to_login(request.get_full_path(), login_url)
 
         response = self.get_response(request)
         return response

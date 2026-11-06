@@ -4,18 +4,14 @@
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">THEO DÕI YÊU CẦU</p><h1>Ticket của tôi</h1><p>Xem trạng thái và tiếp tục trao đổi về các sự cố đã báo.</p></div><a class="btn btn-primary" href="{% url 'tickets:create' %}"><span aria-hidden="true">+</span> Tạo ticket</a></div>
 {% include 'tickets/_demo_banner.html' %}
-<div class="ticket-stats" aria-label="Tổng quan ticket mẫu">
-    <div class="stat-card"><span>Tổng ticket</span><strong>{{ stats.total }}</strong><small>Trong phiên xem thử</small></div>
-    <div class="stat-card"><span><i class="status-dot dot-new" aria-hidden="true"></i> Chờ tiếp nhận</span><strong>{{ stats.new }}</strong><small>Yêu cầu mới</small></div>
-    <div class="stat-card"><span><i class="status-dot dot-active" aria-hidden="true"></i> Đang xử lý</span><strong>{{ stats.active }}</strong><small>Đã được tiếp nhận</small></div>
-    <div class="stat-card"><span><i class="status-dot dot-resolved" aria-hidden="true"></i> Đã giải quyết</span><strong>{{ stats.resolved }}</strong><small>Đã xử lý hoặc đã đóng</small></div>
-</div>
+{% include 'tickets/_stats.html' %}
 <section class="surface ticket-list-panel" aria-labelledby="list-heading">
     <div class="surface-heading"><h2 id="list-heading">Danh sách ticket</h2><span class="result-count">{{ page_obj.paginator.count }} kết quả</span></div>
     <form method="get" class="ticket-filters" role="search" aria-label="Tìm ticket">
-        <div class="filter-search"><label for="ticket-query">Tìm kiếm</label><input class="form-control" id="ticket-query" name="q" type="search" maxlength="150" value="{{ query }}" placeholder="Mã ticket, tiêu đề hoặc phòng…"></div>
+        <div class="filter-search"><label for="ticket-query">Tìm kiếm</label><input class="form-control" id="ticket-query" name="q" type="search" maxlength="150" value="{{ query }}" placeholder="Mã, tiêu đề, phòng hoặc người gửi…"></div>
         <div><label for="ticket-status">Trạng thái</label><select class="form-select" name="status" id="ticket-status"><option value="">Tất cả trạng thái</option>{% for value,label in statuses %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
         <div><label for="ticket-category">Nhóm sự cố</label><select class="form-select" name="category" id="ticket-category"><option value="">Tất cả nhóm</option>{% for value,label in categories %}<option value="{{ value }}"{% if category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div><label for="ticket-priority">Độ ưu tiên</label><select class="form-select" name="priority" id="ticket-priority"><option value="">Tất cả mức độ</option>{% for value,label in priorities %}<option value="{{ value }}"{% if priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
         <div><label for="ticket-sort">Sắp xếp</label><select class="form-select" name="sort" id="ticket-sort"><option value="newest"{% if sort == 'newest' %} selected{% endif %}>Mới nhất</option><option value="oldest"{% if sort == 'oldest' %} selected{% endif %}>Cũ nhất</option><option value="priority"{% if sort == 'priority' %} selected{% endif %}>Ưu tiên cao trước</option></select></div>
         <button class="btn btn-primary" type="submit">Áp dụng</button>
     </form>
