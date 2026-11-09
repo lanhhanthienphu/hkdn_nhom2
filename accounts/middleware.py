@@ -1,5 +1,6 @@
 # accounts/middleware.py
 from django.contrib.auth.views import redirect_to_login
+from django.http import JsonResponse
 from django.urls import reverse, NoReverseMatch
 
 class LoginRequiredMiddleware:
@@ -21,6 +22,14 @@ class LoginRequiredMiddleware:
 
         # Nếu người dùng chưa đăng nhập và trang hiện tại không nằm trong danh sách miễn trừ
         if not request.user.is_authenticated and path not in self.exempt_urls:
+            if request.path_info.startswith('/api/kb/'):
+                response = JsonResponse({
+                    'error': 'authentication_required',
+                    'message': 'Vui lòng đăng nhập để xem kho kiến thức.',
+                }, status=401, json_dumps_params={'ensure_ascii': False})
+                response['Cache-Control'] = 'no-store'
+                return response
+
             try:
                 login_url = reverse('accounts:login')
             except NoReverseMatch:
