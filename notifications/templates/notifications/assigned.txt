@@ -1,0 +1,17 @@
+HELPDESK · NHÓM 2
+{{ heading }}
+
+Xin chào {{ recipient_name }},
+
+Bạn được phân công xử lý yêu cầu hỗ trợ sau.
+Vui lòng mở ticket để xem thông tin và cập nhật tiến độ.
+
+Mã ticket: {{ ticket_code }}
+Tiêu đề: {{ title }}
+{% if status_label %}Trạng thái: {{ status_label }}
+{% endif %}{% if assignee_name %}Kỹ thuật viên: {{ assignee_name }}
+{% endif %}
+Xem chi tiết: {{ ticket_url }}
+
+Bạn cần đăng nhập để xem thông tin theo quyền được cấp.
+Helpdesk Nhóm 2

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ heading }} · Helpdesk</title>
+</head>
+<body style="margin:0;padding:24px;background:#f3f5fa;color:#17243b;font-family:Arial,sans-serif;line-height:1.6;">
+    <table role="presentation" style="width:100%;max-width:640px;margin:0 auto;border-collapse:collapse;">
+        <tr>
+            <td style="padding:22px 28px;background:#244eb5;color:#ffffff;">
+                <strong style="font-size:22px;">Helpdesk · Nhóm 2</strong>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:28px;background:#ffffff;">
+                <h1 style="margin:0 0 20px;font-size:24px;line-height:1.3;">{{ heading }}</h1>
+                <p>Xin chào {{ recipient_name }},</p>
+                {% block explanation %}{% endblock %}
+                <table role="presentation" style="width:100%;border-collapse:collapse;background:#f5f7fc;">
+                    <tr><td style="padding:10px 14px;"><strong>Mã ticket</strong></td><td style="padding:10px 14px;">{{ ticket_code }}</td></tr>
+                    <tr><td style="padding:10px 14px;"><strong>Tiêu đề</strong></td><td style="padding:10px 14px;">{{ title }}</td></tr>
+                    {% if status_label %}<tr><td style="padding:10px 14px;"><strong>Trạng thái</strong></td><td style="padding:10px 14px;">{{ status_label }}</td></tr>{% endif %}
+                    {% if assignee_name %}<tr><td style="padding:10px 14px;"><strong>Kỹ thuật viên</strong></td><td style="padding:10px 14px;">{{ assignee_name }}</td></tr>{% endif %}
+                </table>
+                <p style="margin:24px 0;"><a href="{{ ticket_url }}" style="display:inline-block;padding:11px 18px;background:#244eb5;color:#ffffff;text-decoration:none;border-radius:6px;">Xem chi tiết ticket</a></p>
+                <p style="font-size:13px;color:#5c6980;overflow-wrap:anywhere;">Đường dẫn: <a href="{{ ticket_url }}">{{ ticket_url }}</a></p>
+                <p style="font-size:13px;color:#5c6980;">Bạn cần đăng nhập để xem thông tin theo quyền được cấp.</p>
+            </td>
+        </tr>
+        <tr><td style="padding:16px 28px;color:#5c6980;font-size:12px;">Hệ thống tiếp nhận và xử lý sự cố mạng · Helpdesk Nhóm 2</td></tr>
+    </table>
+</body>
+</html>
