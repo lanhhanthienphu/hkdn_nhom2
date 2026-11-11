@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'tickets.apps.TicketsConfig',
     'kb.apps.KbConfig',
     'accounts',
+    'notifications.apps.NotificationsConfig',
 ]
 
 MIDDLEWARE = [
@@ -134,6 +135,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+DEFAULT_FROM_EMAIL = os.environ.get('HELPDESK_FROM_EMAIL', 'helpdesk@example.test')
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'tickets:home'
 LOGOUT_REDIRECT_URL = 'accounts:login'
