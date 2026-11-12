@@ -16,7 +16,7 @@
         </div></section>
     </div>
     <aside class="ticket-aside" aria-label="Thông tin và lịch sử ticket">
-        <section class="surface aside-card"><h2>Thông tin ticket</h2><dl class="ticket-properties"><div><dt>Người gửi</dt><dd>{{ ticket.reporter }}</dd></div><div><dt>Mã ticket</dt><dd>{{ ticket.code }}</dd></div><div><dt>Nhóm sự cố</dt><dd>{{ ticket.category_label }}</dd></div><div><dt>Vị trí</dt><dd>{{ ticket.location }}</dd></div><div><dt>Độ ưu tiên</dt><dd><span class="priority-label priority-{{ ticket.priority }}"><i aria-hidden="true"></i>{{ ticket.priority_label }}</span></dd></div><div><dt>Người phụ trách</dt><dd>{% if ticket.status == 'new' %}Chưa phân công{% else %}Kỹ thuật viên (mẫu){% endif %}</dd></div></dl></section>
+        <section class="surface aside-card"><h2>Thông tin ticket</h2><dl class="ticket-properties"><div><dt>Người gửi</dt><dd>{{ ticket.reporter }}</dd></div><div><dt>Mã ticket</dt><dd>{{ ticket.code }}</dd></div><div><dt>Nhóm sự cố</dt><dd>{{ ticket.category_label }}</dd></div><div><dt>Vị trí</dt><dd>{{ ticket.location }}</dd></div><div><dt>Độ ưu tiên</dt><dd><span class="priority-label priority-{{ ticket.priority }}"><i aria-hidden="true"></i>{{ ticket.priority_label }}</span></dd></div><div><dt>Người phụ trách</dt><dd>{% if ticket.status == 'new' %}Chưa phân công{% else %}{{ ticket.assignee_name|default:'Kỹ thuật viên (mẫu)' }}{% endif %}</dd></div></dl></section>
         <section class="surface aside-card"><h2>Lịch sử hoạt động</h2><ol class="activity-list">{% for event in ticket.events %}<li><strong>{{ event.title }}</strong><time datetime="{{ event.at|date:'c' }}">{{ event.at|date:'H:i, d/m/Y' }}</time></li>{% endfor %}</ol></section>
     </aside>
 </div>
