@@ -1,5 +1,10 @@
 from django.conf import settings
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+
+from notifications.ticket_events import notify_ticket_event
+
+from .attachment_storage import PrivateAttachmentStorage, attachment_upload_path
 
 
 class Ticket(models.Model):
@@ -162,35 +167,79 @@ class Ticket(models.Model):
             return True
         return False
 
-    def assign_technician(self, tech, by, note: str = ""):
-        old_status = self.status
-        self.assigned_to = tech
-        if self.status == 'new':
-            self.status = 'in_progress'
-        self.save()
-        log_note = note or f"Phân công cho {tech.get_full_name() or tech.get_username()}"
-        TicketHistory.objects.create(
-            ticket=self,
-            changed_by=by,
-            old_status=old_status,
-            new_status=self.status,
-            assigned_to=tech,
-            note=log_note,
-        )
+    @staticmethod
+    def validate_technician(tech):
+        is_tech = tech and hasattr(tech, 'profile') and tech.profile.is_technician()
+        if not tech or not tech.is_active or not (tech.is_superuser or is_tech):
+            raise ValidationError('Chỉ được phân công cho kỹ thuật viên hoặc quản trị viên đang hoạt động.')
 
-    def change_status(self, new_status: str, by, note: str = ""):
-        old_status = self.status
-        self.status = new_status
-        self.save()
-        log_note = note or f"Cập nhật trạng thái thành {self.status_label}"
-        TicketHistory.objects.create(
-            ticket=self,
-            changed_by=by,
-            old_status=old_status,
-            new_status=new_status,
-            assigned_to=self.assigned_to,
-            note=log_note,
-        )
+    def assign_technician(self, tech, by, note: str = "") -> bool:
+        self.validate_technician(tech)
+        database = self._state.db or 'default'
+        with transaction.atomic(using=database):
+            current = Ticket.objects.using(database).select_for_update().get(pk=self.pk)
+            if current.assigned_to_id == tech.pk:
+                self.refresh_from_db(using=database)
+                return False
+            old_status = current.status
+            current.assigned_to = tech
+            if current.status == 'new':
+                current.status = 'in_progress'
+            current.save(using=database, update_fields=['assigned_to', 'status', 'updated_at'])
+            log_note = note or f"Phân công cho {tech.get_full_name() or tech.get_username()}"
+            TicketHistory.objects.using(database).create(
+                ticket=current, changed_by=by, old_status=old_status,
+                new_status=current.status, assigned_to=tech, note=log_note[:255],
+            )
+            notify_ticket_event(current, 'assigned')
+            self.refresh_from_db(using=database)
+        return True
+
+    def change_status(self, new_status: str, by, note: str = "") -> bool:
+        if new_status not in dict(self.STATUS_CHOICES):
+            raise ValidationError('Trạng thái không hợp lệ.')
+        database = self._state.db or 'default'
+        with transaction.atomic(using=database):
+            current = Ticket.objects.using(database).select_for_update().get(pk=self.pk)
+            if current.status == new_status:
+                self.refresh_from_db(using=database)
+                return False
+            old_status = current.status
+            current.status = new_status
+            current.save(using=database, update_fields=['status', 'updated_at'])
+            log_note = note or f"Cập nhật trạng thái thành {current.status_label}"
+            TicketHistory.objects.using(database).create(
+                ticket=current, changed_by=by, old_status=old_status,
+                new_status=new_status, assigned_to=current.assigned_to, note=log_note[:255],
+            )
+            if new_status == 'resolved':
+                notify_ticket_event(current, 'resolved')
+            self.refresh_from_db(using=database)
+        return True
+
+
+class Attachment(models.Model):
+    ticket = models.ForeignKey(
+        Ticket, on_delete=models.CASCADE, related_name='attachments', verbose_name='Ticket',
+    )
+    file = models.FileField(
+        'Tệp', upload_to=attachment_upload_path, storage=PrivateAttachmentStorage(), max_length=255,
+    )
+    original_name = models.CharField('Tên tệp', max_length=255)
+    size = models.PositiveIntegerField('Dung lượng (bytes)')
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ticket_attachments', verbose_name='Người tải lên',
+    )
+    created_at = models.DateTimeField('Ngày tải lên', auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'pk']
+        verbose_name = 'Tệp đính kèm'
+        verbose_name_plural = 'Tệp đính kèm'
+
+    def __str__(self):
+        return self.original_name
 
 
 class Comment(models.Model):

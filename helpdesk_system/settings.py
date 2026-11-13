@@ -136,6 +136,10 @@ MAILERS = {
     },
 }
 DEFAULT_FROM_EMAIL = os.environ.get('HELPDESK_FROM_EMAIL', 'helpdesk@example.test')
+HELPDESK_BASE_URL = os.environ.get('HELPDESK_BASE_URL', 'http://127.0.0.1:8000')
+
+# Ticket files are served only by the permission-checked download view.
+PRIVATE_ATTACHMENT_ROOT = BASE_DIR / 'private_uploads'
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'tickets:home'
 LOGOUT_REDIRECT_URL = 'accounts:login'

@@ -1,5 +1,9 @@
 # Backend 2 — Kiểm tra tệp đính kèm
 
+> Cập nhật: luồng lưu/tải tệp thật đã được nối vào Ticket của BE1.
+> Xem [BACKEND2_TICKET_ATTACHMENTS.md](BACKEND2_TICKET_ATTACHMENTS.md) để cài đặt và kiểm tra bản hiện tại.
+> Các mục bên dưới lưu lại phạm vi của bản vá kiểm tra định dạng ban đầu; không cần áp dụng lại bản vá cũ.
+
 ## Phần đã thực hiện
 
 - Tách `tickets/attachment_validators.py` để dùng lại trong form và model sau này.
