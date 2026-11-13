@@ -27,9 +27,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            requirements-attachments.txt
+          cache-dependency-path: requirements.txt
       - name: Install MySQL client build dependencies
         run: |
           sudo apt-get update
@@ -37,7 +35,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt -r requirements-attachments.txt
+          python -m pip install -r requirements.txt 
       - name: Check Django configuration and migrations
         run: |
           python manage.py check
