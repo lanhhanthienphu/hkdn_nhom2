@@ -30,12 +30,14 @@ class TicketForm(forms.Form):
                                     'placeholder': 'Sự cố bắt đầu khi nào? Bạn nhìn thấy thông báo lỗi gì?'}))
     attachment = forms.FileField(
         label='File đính kèm', required=False,
-        help_text='Chọn 1 file JPG, PNG, PDF, TXT hoặc LOG; tối đa 10 MB. Bản xem thử chỉ ghi nhận tên và dung lượng, chưa lưu nội dung file.',
+        help_text='Chọn 1 file JPG, PNG, PDF, TXT hoặc LOG; tối đa 10 MB.',
         widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': '.jpg,.jpeg,.png,.pdf,.txt,.log',
                                               'data-max-bytes': MAX_ATTACHMENT_BYTES}))
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, demo_mode=False, **kwargs):
         super().__init__(*args, **kwargs)
+        if demo_mode:
+            self.fields['attachment'].help_text += ' Bản xem thử chỉ ghi nhận tên và dung lượng, chưa lưu nội dung file.'
         for field in self.fields.values():
             field.error_messages.update({
                 'required': 'Vui lòng nhập hoặc chọn thông tin này.',

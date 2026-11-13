@@ -1,0 +1,20 @@
+{% for attachment in attachments %}
+<div class="attachment-summary">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14V9Z"/><path d="M13 3v6h6M8 13h8M8 17h5"/></svg>
+    <div>
+        <strong>{{ attachment.original_name }}</strong>
+        <span>{{ attachment.size|filesizeformat }}</span>
+        <a href="{% url 'tickets:attachment_download' ticket.id attachment.id %}" aria-label="Tải tệp {{ attachment.original_name }}">Tải tệp</a>
+    </div>
+</div>
+{% empty %}
+    {% if ticket.attachment %}
+    <div class="attachment-summary">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H5v18h14V9Z"/><path d="M13 3v6h6M8 13h8M8 17h5"/></svg>
+        <div>
+            <strong>{{ ticket.attachment.name }}</strong>
+            <span>{{ ticket.attachment.size|filesizeformat }} · Chỉ ghi nhận thông tin file; chưa có nội dung để tải.</span>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}

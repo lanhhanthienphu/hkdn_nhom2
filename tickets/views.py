@@ -1,22 +1,29 @@
+import logging
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db import DatabaseError, transaction
 from django.db.models import Case, IntegerField, Q, Value, When
-from django.http import HttpResponseForbidden
+from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST, require_safe
 
 from kb.models import Article
 
 from . import demo_store
+from .attachment_services import create_ticket_with_attachment
 from .forms import ReplyForm, TicketForm
-from .models import Comment, Ticket, TicketHistory
+from .models import Attachment, Comment, Ticket
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 @require_GET
@@ -207,6 +214,7 @@ def ticket_list(request):
     })
 
 
+@transaction.non_atomic_requests
 @require_http_methods(['GET', 'POST'])
 @never_cache
 def ticket_create(request):
@@ -219,7 +227,7 @@ def ticket_create(request):
         if request.GET.get('category') in dict(demo_store.CATEGORIES):
             initial['category'] = request.GET['category']
         form = TicketForm(request.POST if request.method == 'POST' else None,
-                          request.FILES if request.method == 'POST' else None, initial=initial)
+                          request.FILES if request.method == 'POST' else None, initial=initial, demo_mode=True)
         if request.method == 'POST' and form.is_valid():
             if len(tickets) >= demo_store.MAX_TICKETS:
                 form.add_error(None, 'Phiên xem thử đã đạt 30 ticket. Hãy mở một phiên trình duyệt mới để thử tiếp.')
@@ -253,28 +261,16 @@ def ticket_create(request):
     )
 
     if request.method == 'POST' and form.is_valid():
-        data = form.cleaned_data
-        attachment = data.get('attachment')
-        ticket = Ticket.objects.create(
-            title=data['title'],
-            category=data['category'],
-            priority=data['priority'],
-            location=data['location'],
-            description=data['description'],
-            created_by=request.user,
-            status='new',
-            attachment_name=attachment.name if attachment else '',
-            attachment_size=attachment.size if attachment else None,
-        )
-        TicketHistory.objects.create(
-            ticket=ticket,
-            changed_by=request.user,
-            old_status='',
-            new_status='new',
-            note='Đã tạo yêu cầu hỗ trợ sự cố',
-        )
-        messages.success(request, 'Đã tạo yêu cầu hỗ trợ thành công. Kỹ thuật viên sẽ tiếp nhận và xử lý.')
-        return redirect('tickets:detail', ticket_id=ticket.id)
+        try:
+            ticket = create_ticket_with_attachment(author=request.user, data=form.cleaned_data)
+        except ValidationError as exc:
+            form.add_error('attachment', exc)
+        except (OSError, DatabaseError):
+            logger.exception('Could not create ticket for user %s', request.user.pk)
+            form.add_error(None, 'Chưa lưu được ticket. Vui lòng thử lại; nếu có tệp đính kèm, hãy chọn lại tệp.')
+        else:
+            messages.success(request, 'Đã tạo yêu cầu hỗ trợ thành công. Kỹ thuật viên sẽ tiếp nhận và xử lý.')
+            return redirect('tickets:detail', ticket_id=ticket.id)
 
     kb_query = {'network': 'Wi-Fi', 'vpn': 'VPN', 'printer': 'máy in'}.get(form['category'].value(), '')
     return render(request, 'tickets/create.html', {'form': form, 'kb_query': kb_query, 'ticket_demo_enabled': False})
@@ -327,7 +323,34 @@ def ticket_detail(request, ticket_id):
             messages.success(request, 'Đã thêm phản hồi thành công.')
             return redirect(reverse('tickets:detail', args=[ticket_id]) + '#conversation')
 
-    return render(request, 'tickets/detail.html', {'ticket': ticket, 'form': form, 'ticket_demo_enabled': False})
+    return render(request, 'tickets/detail.html', {
+        'ticket': ticket, 'form': form, 'ticket_demo_enabled': False,
+        'attachments': ticket.attachments.all(),
+    })
+
+
+@never_cache
+@login_required
+@require_safe
+def attachment_download(request, ticket_id, attachment_id):
+    if getattr(settings, 'FRONTEND_DEMO_ENABLED', None) in (True, False):
+        raise Http404('Tệp không có trong chế độ xem thử.')
+    attachment = get_object_or_404(
+        Attachment.objects.select_related('ticket', 'ticket__created_by', 'ticket__assigned_to'),
+        pk=attachment_id, ticket_id=ticket_id,
+    )
+    if not attachment.ticket.can_view(request.user):
+        raise Http404('Không tìm thấy tệp đính kèm.')
+    try:
+        stream = attachment.file.open('rb')
+    except FileNotFoundError:
+        raise Http404('Nội dung tệp không còn trên máy chủ.') from None
+    response = FileResponse(
+        stream, as_attachment=True, filename=attachment.original_name,
+        content_type='application/octet-stream',
+    )
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @require_POST
@@ -342,9 +365,22 @@ def ticket_assign(request, ticket_id):
     tech_id = request.POST.get('technician_id')
     note = request.POST.get('note', '').strip()
 
+    try:
+        tech_id = int(tech_id)
+        if tech_id <= 0 or tech_id > 9223372036854775807:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise Http404('Không tìm thấy kỹ thuật viên.')
     tech = get_object_or_404(User, id=tech_id)
-    ticket.assign_technician(tech, by=user, note=note)
-    messages.success(request, f"Đã phân công ticket cho kỹ thuật viên {tech.get_full_name() or tech.username}.")
+    try:
+        changed = ticket.assign_technician(tech, by=user, note=note)
+    except ValidationError as error:
+        messages.error(request, ' '.join(error.messages))
+    else:
+        if changed:
+            messages.success(request, f"Đã phân công ticket cho kỹ thuật viên {tech.get_full_name() or tech.username}.")
+        else:
+            messages.info(request, 'Ticket đã được phân công cho người này.')
     return redirect('tickets:detail', ticket_id=ticket.id)
 
 
@@ -364,6 +400,8 @@ def ticket_change_status(request, ticket_id):
         return HttpResponseForbidden("Bạn không có quyền thay đổi trạng thái ticket này.")
 
     note = request.POST.get('note', '').strip()
-    ticket.change_status(new_status, by=user, note=note)
-    messages.success(request, f"Đã cập nhật trạng thái thành {ticket.status_label}.")
+    if ticket.change_status(new_status, by=user, note=note):
+        messages.success(request, f"Đã cập nhật trạng thái thành {ticket.status_label}.")
+    else:
+        messages.info(request, 'Trạng thái ticket không thay đổi.')
     return redirect('tickets:detail', ticket_id=ticket.id)

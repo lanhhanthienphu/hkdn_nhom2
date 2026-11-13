@@ -93,8 +93,8 @@ def validate_attachment(attachment):
     """Raise ValidationError for invalid uploads; preserve the stream position.
 
     content_type is deliberately ignored because it is provided by the client.
-    This checks file formats, not malware. Download permission belongs to the
-    future Ticket integration, where files should be returned as attachments.
+    This checks file formats, not malware. The ticket download view enforces
+    Ticket.can_view() and returns files as attachments.
     """
     extension = Path(attachment.name).suffix.lower()
     if extension not in ATTACHMENT_EXTENSIONS:

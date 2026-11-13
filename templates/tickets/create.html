@@ -28,7 +28,7 @@
                 <div class="file-preview" data-file-preview hidden><img alt="Ảnh đính kèm bạn vừa chọn" data-preview-image></div>
                 <button class="remove-file-button" type="button" data-remove-file hidden>Bỏ file đã chọn</button>
             </div>
-            <div class="form-actions"><a class="btn btn-outline-secondary" href="{% url 'tickets:list' %}">Hủy</a><button class="btn btn-primary" type="submit" data-submit-button>Tạo ticket xem thử <span aria-hidden="true">→</span></button></div>
+            <div class="form-actions"><a class="btn btn-outline-secondary" href="{% url 'tickets:list' %}">Hủy</a><button class="btn btn-primary" type="submit" data-submit-button>{% if ticket_demo_enabled %}Tạo ticket xem thử{% else %}Tạo ticket{% endif %} <span aria-hidden="true">→</span></button></div>
         </form>
     </section>
     <aside class="ticket-aside" aria-label="Hướng dẫn báo sự cố">
