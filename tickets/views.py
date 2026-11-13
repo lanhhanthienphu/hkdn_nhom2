@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models.functions import Concat
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -65,7 +66,7 @@ def home(request):
             'resolved': qs.filter(status='resolved').count(),
             'closed': qs.filter(status='closed').count(),
         }
-        recent_tickets = list(qs.order_by('-created_at')[:3])
+        recent_tickets = list(qs.order_by('-created_at', '-pk')[:3])
 
     return render(request, 'tickets/home.html', {
         'ticket_demo_enabled': False,
@@ -161,23 +162,27 @@ def ticket_list(request):
         priority = ''
 
     if query:
+        qs = qs.alias(reporter_full_name=Concat(
+            'created_by__first_name', Value(' '), 'created_by__last_name',
+        ))
         q_filter = (
             Q(title__icontains=query) |
             Q(location__icontains=query) |
             Q(created_by__username__icontains=query) |
             Q(created_by__first_name__icontains=query) |
-            Q(created_by__last_name__icontains=query)
+            Q(created_by__last_name__icontains=query) |
+            Q(reporter_full_name__icontains=query)
         )
-        if query.upper().startswith('HD-'):
-            sub_id = query[3:]
-            if sub_id.isdigit():
-                q_filter |= Q(id=int(sub_id))
-        elif query.isdigit():
-            q_filter |= Q(id=int(query))
+        raw_id = query[3:] if query.upper().startswith('HD-') else query
+        # isdigit() also accepts characters such as ², which int() cannot parse.
+        if raw_id.isascii() and raw_id.isdecimal():
+            ticket_id = int(raw_id)
+            if 0 < ticket_id <= 9223372036854775807:
+                q_filter |= Q(pk=ticket_id)
         qs = qs.filter(q_filter)
 
     if sort == 'oldest':
-        qs = qs.order_by('created_at')
+        qs = qs.order_by('created_at', 'pk')
     elif sort == 'priority':
         qs = qs.annotate(
             priority_rank=Case(
@@ -188,10 +193,10 @@ def ticket_list(request):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-        ).order_by('-priority_rank', '-created_at')
+        ).order_by('-priority_rank', '-created_at', '-pk')
     else:
         sort = 'newest'
-        qs = qs.order_by('-created_at')
+        qs = qs.order_by('-created_at', '-pk')
 
     page = Paginator(qs, 5).get_page(request.GET.get('page'))
     params = request.GET.copy()
@@ -315,13 +320,19 @@ def ticket_detail(request, ticket_id):
         if ticket.status == 'closed':
             form.add_error(None, 'Ticket đã đóng, không thể thêm phản hồi.')
         else:
-            Comment.objects.create(
-                ticket=ticket,
-                user=request.user,
-                content=form.cleaned_data['content'],
-            )
-            messages.success(request, 'Đã thêm phản hồi thành công.')
-            return redirect(reverse('tickets:detail', args=[ticket_id]) + '#conversation')
+            try:
+                with transaction.atomic():
+                    Comment.objects.create(
+                        ticket=ticket,
+                        user=request.user,
+                        content=form.cleaned_data['content'],
+                    )
+            except DatabaseError:
+                logger.exception('Could not save reply for ticket %s', ticket.pk)
+                form.add_error(None, 'Chưa gửi được phản hồi. Nội dung của bạn vẫn được giữ bên dưới; vui lòng thử lại.')
+            else:
+                messages.success(request, 'Đã thêm phản hồi thành công.')
+                return redirect(reverse('tickets:detail', args=[ticket_id]) + '#conversation')
 
     return render(request, 'tickets/detail.html', {
         'ticket': ticket, 'form': form, 'ticket_demo_enabled': False,

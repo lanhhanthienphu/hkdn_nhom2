@@ -5,7 +5,7 @@ from .attachment_validators import (
     MAX_ATTACHMENT_BYTES,
     validate_attachment,
 )
-from .demo_store import CATEGORIES, PRIORITIES
+from .models import Ticket
 
 
 class TicketForm(forms.Form):
@@ -14,10 +14,10 @@ class TicketForm(forms.Form):
         help_text='Mô tả ngắn gọn vấn đề bạn gặp (5–150 ký tự).',
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ví dụ: Không kết nối được Wi-Fi tại phòng A.201'}))
     category = forms.ChoiceField(
-        label='Nhóm sự cố', choices=[('', 'Chọn nhóm sự cố')] + CATEGORIES,
+        label='Nhóm sự cố', choices=[('', 'Chọn nhóm sự cố')] + Ticket.CATEGORY_CHOICES,
         widget=forms.Select(attrs={'class': 'form-select'}))
     priority = forms.ChoiceField(
-        label='Độ ưu tiên', choices=PRIORITIES, initial='normal',
+        label='Độ ưu tiên', choices=Ticket.PRIORITY_CHOICES, initial='normal',
         help_text='Chọn Khẩn cấp khi sự cố làm gián đoạn hoạt động của nhiều người.',
         widget=forms.Select(attrs={'class': 'form-select'}))
     location = forms.CharField(
