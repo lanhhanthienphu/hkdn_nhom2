@@ -24,7 +24,8 @@
             </div>
             <div class="attachment-box">
                 {% include 'tickets/_field.html' with field=form.attachment %}
-                <p class="selected-file" data-file-feedback aria-live="polite"></p>
+                {% if form.is_bound and form.errors %}<p class="form-text">Nếu đã chọn file trước đó, hãy chọn lại file trước khi gửi.</p>{% endif %}
+                <p class="selected-file" data-file-feedback data-file-hint="{% if ticket_demo_enabled %}Nội dung file chưa được lưu trong bản xem thử.{% else %}File sẽ được lưu khi ticket được tạo thành công.{% endif %}" aria-live="polite"></p>
                 <div class="file-preview" data-file-preview hidden><img alt="Ảnh đính kèm bạn vừa chọn" data-preview-image></div>
                 <button class="remove-file-button" type="button" data-remove-file hidden>Bỏ file đã chọn</button>
             </div>

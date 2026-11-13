@@ -46,7 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const size = file.size >= 1024 * 1024
                     ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
                     : `${Math.max(1, Math.ceil(file.size / 1024))} KB`;
-                feedback.textContent = `Đã chọn: ${file.name} (${size}). Nội dung file chưa được lưu trong bản xem thử.`;
+                const hint = feedback.dataset.fileHint || "";
+                feedback.textContent = `Đã chọn: ${file.name} (${size}). ${hint}`.trim();
                 if (preview && previewImage && /^(image\/png|image\/jpeg)$/i.test(file.type)) {
                     previewUrl = URL.createObjectURL(file);
                     const currentUrl = previewUrl;

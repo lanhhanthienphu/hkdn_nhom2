@@ -1,5 +1,5 @@
-<div class="ticket-stats personal-stats" aria-label="Tổng quan ticket cá nhân trong phiên xem thử">
-    <a class="stat-card" href="{% url 'tickets:list' %}"><span>Tổng ticket</span><strong>{{ stats.total }}</strong><small>Trong phiên xem thử</small></a>
+<div class="ticket-stats personal-stats" aria-label="Tổng quan ticket{% if ticket_demo_enabled %} trong phiên xem thử{% endif %}">
+    <a class="stat-card" href="{% url 'tickets:list' %}"><span>Tổng ticket</span><strong>{{ stats.total }}</strong><small>{% if ticket_demo_enabled %}Trong phiên xem thử{% else %}Tất cả yêu cầu{% endif %}</small></a>
     <a class="stat-card" href="{% url 'tickets:list' %}?status=new"><span><i class="status-dot dot-new" aria-hidden="true"></i> Chờ tiếp nhận</span><strong>{{ stats.new }}</strong><small>Xem yêu cầu mới →</small></a>
     <a class="stat-card" href="{% url 'tickets:list' %}?status=in_progress"><span><i class="status-dot dot-active" aria-hidden="true"></i> Đang xử lý</span><strong>{{ stats.in_progress }}</strong><small>Xem tiến độ →</small></a>
     <a class="stat-card" href="{% url 'tickets:list' %}?status=resolved"><span><i class="status-dot dot-resolved" aria-hidden="true"></i> Đã xử lý</span><strong>{{ stats.resolved }}</strong><small>Xem kết quả →</small></a>
