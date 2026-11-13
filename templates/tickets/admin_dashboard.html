@@ -195,62 +195,96 @@
         </div>
     </div>
 
-    <!-- 2. KHU VỰC 4 BIỂU ĐỒ CHART.JS -->
+    <!-- 2. HÀNG THỨ HAI: BIỂU ĐỒ TRẠNG THÁI TICKET VÀ MỨC ĐỘ ƯU TIÊN -->
     <div class="row g-3">
         <!-- Biểu đồ 1: Doughnut Chart - Trạng thái Ticket -->
-        <div class="col-12 col-lg-6 col-xl-3">
+        <div class="col-12 col-lg-6">
             <div class="chart-box">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-pie-chart text-primary me-2"></i>Trạng Thái Ticket</h2>
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-pie-chart text-primary me-2"></i>Thống kê Ticket theo trạng thái</h2>
+                    <span class="badge bg-light text-muted border">Doughnut Chart</span>
                 </div>
                 <div class="chart-wrapper">
-                    <canvas id="statusChart"></canvas>
+                    {% if chart_data.has_data %}
+                        <canvas id="statusChart"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
+                            <i class="bi bi-pie-chart fs-1 mb-2 opacity-50"></i>
+                            <span>Chưa có dữ liệu</span>
+                        </div>
+                    {% endif %}
                 </div>
-                <div class="mt-3 text-center small text-muted">Phân bổ 4 trạng thái xử lý</div>
+                <div class="mt-3 text-center small text-muted">Phân bổ theo 4 trạng thái: Mới tiếp nhận, Đang xử lý, Đã giải quyết, Đã đóng</div>
             </div>
         </div>
 
         <!-- Biểu đồ 2: Bar Chart - Mức độ ưu tiên -->
-        <div class="col-12 col-lg-6 col-xl-3">
+        <div class="col-12 col-lg-6">
             <div class="chart-box">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-bar-chart text-danger me-2"></i>Mức Độ Ưu Tiên</h2>
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-bar-chart text-danger me-2"></i>Thống kê sự cố theo mức độ ưu tiên</h2>
+                    <span class="badge bg-light text-muted border">Bar Chart</span>
                 </div>
                 <div class="chart-wrapper">
-                    <canvas id="priorityChart"></canvas>
+                    {% if chart_data.has_data %}
+                        <canvas id="priorityChart"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
+                            <i class="bi bi-bar-chart fs-1 mb-2 opacity-50"></i>
+                            <span>Chưa có dữ liệu</span>
+                        </div>
+                    {% endif %}
                 </div>
-                <div class="mt-3 text-center small text-muted">Tỷ trọng ưu tiên phân bổ nhân lực</div>
+                <div class="mt-3 text-center small text-muted">Phân loại theo cấp độ: Thấp, Trung bình, Cao, Nghiêm trọng</div>
             </div>
         </div>
+    </div>
 
+    <!-- 3. HÀNG THỨ BA: BIỂU ĐỒ SỰ CỐ THEO THỜI GIAN VÀ THEO LOẠI SỰ CỐ MẠNG -->
+    <div class="row g-3">
         <!-- Biểu đồ 3: Line Chart - Ticket theo thời gian -->
-        <div class="col-12 col-lg-8 col-xl-3">
+        <div class="col-12 col-lg-6">
             <div class="chart-box">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-graph-up text-info me-2"></i>Sự Cố Theo Thời Gian</h2>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary btn-sm active" id="btn7d" onclick="switchTimeRange('days_7')">7 ngày</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn30d" onclick="switchTimeRange('days_30')">30 ngày</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnMonths" onclick="switchTimeRange('months')">Tháng</button>
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-graph-up text-info me-2"></i>Thống kê sự cố theo thời gian</h2>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Bộ lọc thời gian">
+                        <button type="button" class="btn btn-outline-primary btn-sm active" id="btn7d" onclick="switchTimeRange('days_7')">7 ngày gần nhất</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn30d" onclick="switchTimeRange('days_30')">30 ngày gần nhất</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnMonths" onclick="switchTimeRange('months')">Theo tháng</button>
                     </div>
                 </div>
                 <div class="chart-wrapper">
-                    <canvas id="timeSeriesChart"></canvas>
+                    {% if chart_data.has_data %}
+                        <canvas id="timeSeriesChart"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
+                            <i class="bi bi-graph-up fs-1 mb-2 opacity-50"></i>
+                            <span>Chưa có dữ liệu</span>
+                        </div>
+                    {% endif %}
                 </div>
-                <div class="mt-3 text-center small text-muted">Số lượng ticket phát sinh theo thời gian</div>
+                <div class="mt-3 text-center small text-muted">Biến động số lượng sự cố mạng phát sinh qua các mốc thời gian</div>
             </div>
         </div>
 
-        <!-- Biểu đồ 4: Phân loại theo Danh mục -->
-        <div class="col-12 col-lg-4 col-xl-3">
+        <!-- Biểu đồ 4: Horizontal Bar Chart - Loại sự cố mạng -->
+        <div class="col-12 col-lg-6">
             <div class="chart-box">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-hdd-network text-success me-2"></i>Theo Danh Mục</h2>
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-hdd-network text-success me-2"></i>Thống kê theo loại sự cố mạng</h2>
+                    <span class="badge bg-light text-muted border">Horizontal Bar</span>
                 </div>
                 <div class="chart-wrapper">
-                    <canvas id="categoryChart"></canvas>
+                    {% if chart_data.has_data %}
+                        <canvas id="networkTypeChart"></canvas>
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-4 text-muted">
+                            <i class="bi bi-hdd-network fs-1 mb-2 opacity-50"></i>
+                            <span>Chưa có dữ liệu</span>
+                        </div>
+                    {% endif %}
                 </div>
-                <div class="mt-3 text-center small text-muted">Cơ cấu nguyên nhân sự cố mạng</div>
+                <div class="mt-3 text-center small text-muted">Mất kết nối Internet, Wi-Fi, LAN, Thiết bị mạng, Máy chủ và sự cố khác</div>
             </div>
         </div>
     </div>
@@ -554,128 +588,18 @@
 {% block extra_js %}
 <!-- Tích hợp Chart.js từ CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Tách riêng module biểu đồ Dashboard theo yêu cầu kỹ thuật -->
+<script src="{% static 'js/dashboard-charts.js' %}"></script>
 <script>
-    // Nhận dữ liệu thực tế từ Django Context (được serialize JSON an toàn)
-    const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
-
-    // 1. Biểu đồ trạng thái (Doughnut Chart)
-    const ctxStatus = document.getElementById('statusChart').getContext('2d');
-    new Chart(ctxStatus, {
-        type: 'doughnut',
-        data: {
-            labels: chartData.status.labels,
-            datasets: [{
-                data: chartData.status.data,
-                backgroundColor: chartData.status.colors,
-                borderWidth: 2,
-                borderColor: '#ffffff',
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
-            },
-            cutout: '65%'
-        }
-    });
-
-    // 2. Biểu đồ mức độ ưu tiên (Bar Chart)
-    const ctxPriority = document.getElementById('priorityChart').getContext('2d');
-    new Chart(ctxPriority, {
-        type: 'bar',
-        data: {
-            labels: chartData.priority.labels,
-            datasets: [{
-                label: 'Số lượng sự cố',
-                data: chartData.priority.data,
-                backgroundColor: chartData.priority.colors,
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, ticks: { precision: 0 } },
-                x: { ticks: { font: { size: 11 } } }
-            }
-        }
-    });
-
-    // 3. Biểu đồ theo thời gian (Line Chart)
-    const ctxTime = document.getElementById('timeSeriesChart').getContext('2d');
-    let timeChart = new Chart(ctxTime, {
-        type: 'line',
-        data: {
-            labels: chartData.time_series.days_7.labels,
-            datasets: [{
-                label: 'Ticket phát sinh',
-                data: chartData.time_series.days_7.data,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                tension: 0.35,
-                fill: true,
-                pointRadius: 4,
-                pointBackgroundColor: '#2563eb'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, ticks: { precision: 0 } }
-            }
-        }
-    });
-
-    // Chuyển đổi khoảng thời gian cho biểu đồ đường
-    function switchTimeRange(rangeKey) {
-        document.getElementById('btn7d').classList.remove('active');
-        document.getElementById('btn30d').classList.remove('active');
-        document.getElementById('btnMonths').classList.remove('active');
-
-        if (rangeKey === 'days_7') {
-            document.getElementById('btn7d').classList.add('active');
-            timeChart.data.labels = chartData.time_series.days_7.labels;
-            timeChart.data.datasets[0].data = chartData.time_series.days_7.data;
-        } else if (rangeKey === 'days_30') {
-            document.getElementById('btn30d').classList.add('active');
-            timeChart.data.labels = chartData.time_series.days_30.labels;
-            timeChart.data.datasets[0].data = chartData.time_series.days_30.data;
-        } else if (rangeKey === 'months') {
-            document.getElementById('btnMonths').classList.add('active');
-            timeChart.data.labels = chartData.time_series.months.labels;
-            timeChart.data.datasets[0].data = chartData.time_series.months.data;
-        }
-        timeChart.update();
+    // Nhận dữ liệu thực tế từ Django ORM (serialize an toàn)
+    try {
+        const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
+        document.addEventListener('DOMContentLoaded', function() {
+            initDashboardCharts(chartData);
+        });
+    } catch (e) {
+        console.error('Không thể khởi tạo biểu đồ:', e);
     }
-
-    // 4. Biểu đồ theo danh mục sự cố (Doughnut / Polar Chart)
-    const ctxCat = document.getElementById('categoryChart').getContext('2d');
-    new Chart(ctxCat, {
-        type: 'doughnut',
-        data: {
-            labels: chartData.category.labels,
-            datasets: [{
-                data: chartData.category.data,
-                backgroundColor: chartData.category.colors,
-                borderWidth: 2,
-                borderColor: '#ffffff',
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
-            },
-            cutout: '55%'
-        }
-    });
 </script>
 {% endblock %}
 

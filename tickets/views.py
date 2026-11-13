@@ -77,6 +77,91 @@ def get_category_stats(base_qs=None):
     return labels, data
 
 
+def get_network_incident_types_stats(base_qs=None):
+    """
+    Thống kê các loại sự cố mạng từ database theo yêu cầu:
+    - Mất kết nối Internet
+    - Lỗi Wi-Fi
+    - Lỗi mạng LAN
+    - Lỗi thiết bị mạng
+    - Lỗi máy chủ
+    - Các danh mục khác tồn tại trong database
+    """
+    if base_qs is None:
+        base_qs = Ticket.objects.all()
+
+    # Truy vấn ORM trực tiếp từ database thật
+    internet_count = base_qs.filter(
+        Q(title__icontains='internet') | Q(description__icontains='internet') |
+        Q(title__icontains='vpn') | Q(category='vpn')
+    ).count()
+
+    wifi_count = base_qs.filter(
+        Q(title__icontains='wi-fi') | Q(title__icontains='wifi') |
+        Q(description__icontains='wi-fi') | Q(description__icontains='wifi') |
+        Q(title__icontains='access point') | Q(title__icontains='ap')
+    ).count()
+
+    lan_count = base_qs.filter(
+        Q(title__icontains='lan') | Q(description__icontains='lan') |
+        Q(title__icontains='cáp') | Q(description__icontains='cáp') |
+        Q(title__icontains='rj45') | Q(title__icontains='đầu bấm') |
+        Q(title__icontains='dhcp') | Q(title__icontains='xung đột ip')
+    ).count()
+
+    device_count = base_qs.filter(
+        Q(title__icontains='switch') | Q(title__icontains='router') |
+        Q(description__icontains='switch') | Q(description__icontains='router') |
+        Q(title__icontains='thiết bị mạng') | Q(title__icontains='tủ rack') | Q(title__icontains='ups')
+    ).count()
+
+    server_count = base_qs.filter(
+        Q(title__icontains='server') | Q(title__icontains='máy chủ') |
+        Q(description__icontains='server') | Q(description__icontains='máy chủ')
+    ).count()
+
+    printer_count = base_qs.filter(
+        Q(category='printer') | Q(title__icontains='máy in') | Q(description__icontains='máy in')
+    ).count()
+
+    other_count = base_qs.exclude(
+        Q(title__icontains='internet') | Q(description__icontains='internet') |
+        Q(title__icontains='vpn') | Q(category='vpn') |
+        Q(title__icontains='wi-fi') | Q(title__icontains='wifi') |
+        Q(description__icontains='wi-fi') | Q(description__icontains='wifi') |
+        Q(title__icontains='access point') | Q(title__icontains='ap') |
+        Q(title__icontains='lan') | Q(description__icontains='lan') |
+        Q(title__icontains='cáp') | Q(description__icontains='cáp') |
+        Q(title__icontains='rj45') | Q(title__icontains='đầu bấm') |
+        Q(title__icontains='dhcp') | Q(title__icontains='xung đột ip') |
+        Q(title__icontains='switch') | Q(title__icontains='router') |
+        Q(description__icontains='switch') | Q(description__icontains='router') |
+        Q(title__icontains='thiết bị mạng') | Q(title__icontains='tủ rack') | Q(title__icontains='ups') |
+        Q(title__icontains='server') | Q(title__icontains='máy chủ') |
+        Q(description__icontains='server') | Q(description__icontains='máy chủ') |
+        Q(category='printer') | Q(title__icontains='máy in') | Q(description__icontains='máy in')
+    ).count()
+
+    labels = [
+        'Mất kết nối Internet',
+        'Lỗi Wi-Fi',
+        'Lỗi mạng LAN',
+        'Lỗi thiết bị mạng',
+        'Lỗi máy chủ',
+        'Sự cố khác',
+    ]
+    data = [
+        internet_count,
+        wifi_count,
+        lan_count,
+        device_count,
+        server_count,
+        printer_count + other_count,
+    ]
+    return labels, data
+
+
+
 def get_ticket_time_series():
     today = timezone.localdate()
 
@@ -579,30 +664,31 @@ def admin_dashboard(request):
         'low': base_qs.filter(priority='low').count(),
     }
 
-    # Thống kê theo danh mục
-    category_labels, category_data = get_category_stats(base_qs)
+    # Thống kê theo loại sự cố mạng (Biểu đồ 4)
+    network_cat_labels, network_cat_data = get_network_incident_types_stats(base_qs)
 
-    # Time series cho biểu đồ xu hướng
+    # Time series cho biểu đồ xu hướng (Biểu đồ 3)
     time_series = get_ticket_time_series()
 
     # Dữ liệu chuẩn bị cho 4 Chart.js
     chart_data = {
         'status': {
-            'labels': ['Chờ xử lý (Open)', 'Đang xử lý (In Progress)', 'Đã giải quyết (Resolved)', 'Đã đóng (Closed)'],
+            'labels': ['Open – Mới tiếp nhận', 'In Progress – Đang xử lý', 'Resolved – Đã giải quyết', 'Closed – Đã đóng'],
             'data': [stats['open'], stats['in_progress'], stats['resolved'], stats['closed']],
-            'colors': ['#f59e0b', '#2563eb', '#10b981', '#64748b'],
+            'colors': ['#3b82f6', '#f59e0b', '#10b981', '#6b7280'],
         },
         'priority': {
-            'labels': ['Thấp (Low)', 'Bình thường (Normal)', 'Cao (High)', 'Khẩn cấp (Critical)'],
+            'labels': ['Low – Thấp', 'Medium – Trung bình', 'High – Cao', 'Critical – Nghiêm trọng'],
             'data': [priority_stats['low'], priority_stats['normal'], priority_stats['high'], priority_stats['urgent']],
-            'colors': ['#10b981', '#0284c7', '#f97316', '#ef4444'],
+            'colors': ['#6b7280', '#3b82f6', '#f97316', '#ef4444'],
         },
         'category': {
-            'labels': category_labels,
-            'data': category_data,
-            'colors': ['#2563eb', '#8b5cf6', '#0d9488', '#ea580c', '#6366f1', '#ec4899'],
+            'labels': network_cat_labels,
+            'data': network_cat_data,
+            'colors': ['#2563eb', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#64748b'],
         },
         'time_series': time_series,
+        'has_data': stats['total'] > 0,
     }
 
     # 2. Bộ lọc và danh sách Ticket mới nhất
