@@ -7,6 +7,7 @@
     <meta name="description" content="Cổng hỗ trợ và hướng dẫn báo sự cố mạng nội bộ.">
     <title>{% block title %}Helpdesk · Nhóm 2{% endblock %}</title>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
     <link rel="stylesheet" href="{% static 'css/tickets.css' %}">
     <link rel="stylesheet" href="{% static 'css/portal.css' %}">
@@ -26,38 +27,115 @@
         </div>
         <div class="offcanvas-body sidebar-body">
             <nav aria-label="Điều hướng chính">
-                <p class="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
-                <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:home' %} is-active{% endif %}" href="{% url 'tickets:home' %}"{% if request.resolver_match.view_name == 'tickets:home' %} aria-current="page"{% endif %}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/></svg>
-                    Trang chủ
-                </a>
-                <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:create' %} is-active{% endif %}" href="{% url 'tickets:create' %}"{% if request.resolver_match.view_name == 'tickets:create' %} aria-current="page"{% endif %}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 7v10M7 12h10"/></svg>
-                    Tạo ticket
-                </a>
-                <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:list' or request.resolver_match.view_name == 'tickets:detail' %} is-active{% endif %}" href="{% url 'tickets:list' %}"{% if request.resolver_match.view_name == 'tickets:list' %} aria-current="page"{% endif %}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
-                    Ticket của tôi
-                </a>
-                <p class="nav-caption mt-4">HƯỚNG DẪN</p>
-                <a
-                    class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}"
-                    href="{% url 'kb:article_list' %}"
-                >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 3h16v18H4Z"/>
-                        <path d="M8 7h8M8 11h8M8 15h5"/>
-                    </svg>
-                    Kho kiến thức
-                </a>
-                <a class="sidebar-link" href="{% url 'tickets:home' %}#incident-types">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                    Nhóm sự cố
-                </a>
-                <a class="sidebar-link" href="{% url 'tickets:home' %}#report-guide">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5Z"/><path d="M8 7h8M8 12h8M8 17h5"/></svg>
-                    Thông tin cần chuẩn bị
-                </a>
+                {% if is_admin %}
+                    <p class="nav-caption">QUẢN TRỊ VIÊN</p>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:admin_dashboard' or request.resolver_match.view_name == 'tickets:dashboard' %} is-active{% endif %}" href="{% url 'tickets:admin_dashboard' %}">
+                        <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                        Dashboard
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:list' and not request.GET.reporter %} is-active{% endif %}" href="{% url 'tickets:list' %}">
+                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                        Quản lý Ticket
+                    </a>
+                    <a class="sidebar-link{% if request.GET.reporter == 'me' %} is-active{% endif %}" href="{% url 'tickets:list' %}?reporter=me">
+                        <i class="bi bi-person-lines-fill" aria-hidden="true"></i>
+                        Ticket của tôi
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:reports' %} is-active{% endif %}" href="{% url 'tickets:reports' %}">
+                        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+                        Thống kê báo cáo
+                    </a>
+                    <a class="sidebar-link" href="/admin/auth/user/" target="_blank" rel="noopener">
+                        <i class="bi bi-people" aria-hidden="true"></i>
+                        Quản lý tài khoản
+                    </a>
+                    <p class="nav-caption mt-4">CỔNG TIẾP NHẬN SỰ CỐ</p>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:home' %} is-active{% endif %}" href="{% url 'tickets:home' %}">
+                        <i class="bi bi-house" aria-hidden="true"></i>
+                        Trang chủ
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:create' %} is-active{% endif %}" href="{% url 'tickets:create' %}">
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        Tạo ticket
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}" href="{% url 'kb:article_list' %}">
+                        <i class="bi bi-book" aria-hidden="true"></i>
+                        Kho kiến thức
+                    </a>
+                {% elif is_technician %}
+                    <p class="nav-caption">KỸ THUẬT VIÊN</p>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:technician_dashboard' or request.resolver_match.view_name == 'tickets:dashboard' %} is-active{% endif %}" href="{% url 'tickets:technician_dashboard' %}">
+                        <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                        Dashboard
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:list' %} is-active{% endif %}" href="{% url 'tickets:list' %}">
+                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                        Quản lý Ticket
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:technician_dashboard' %} is-active{% endif %}" href="{% url 'tickets:technician_dashboard' %}">
+                        <i class="bi bi-check2-square" aria-hidden="true"></i>
+                        Ticket của tôi
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:reports' %} is-active{% endif %}" href="{% url 'tickets:reports' %}">
+                        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+                        Thống kê báo cáo
+                    </a>
+                    <p class="nav-caption mt-4">CỔNG TIẾP NHẬN SỰ CỐ</p>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:home' %} is-active{% endif %}" href="{% url 'tickets:home' %}">
+                        <i class="bi bi-house" aria-hidden="true"></i>
+                        Trang chủ
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:create' %} is-active{% endif %}" href="{% url 'tickets:create' %}">
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        Tạo ticket
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}" href="{% url 'kb:article_list' %}">
+                        <i class="bi bi-book" aria-hidden="true"></i>
+                        Kho kiến thức
+                    </a>
+                {% else %}
+                    <p class="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:home' %} is-active{% endif %}" href="{% url 'tickets:home' %}"{% if request.resolver_match.view_name == 'tickets:home' %} aria-current="page"{% endif %}>
+                        <i class="bi bi-house" aria-hidden="true"></i>
+                        Trang chủ
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:create' %} is-active{% endif %}" href="{% url 'tickets:create' %}"{% if request.resolver_match.view_name == 'tickets:create' %} aria-current="page"{% endif %}>
+                        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                        Tạo ticket
+                    </a>
+                    <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:list' or request.resolver_match.view_name == 'tickets:detail' %} is-active{% endif %}" href="{% url 'tickets:list' %}"{% if request.resolver_match.view_name == 'tickets:list' %} aria-current="page"{% endif %}>
+                        <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+                        Ticket của tôi
+                    </a>
+                    <p class="nav-caption mt-4">HƯỚNG DẪN</p>
+                    <a
+                        class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}"
+                        href="{% url 'kb:article_list' %}"
+                    >
+                        <i class="bi bi-book" aria-hidden="true"></i>
+                        Kho kiến thức
+                    </a>
+                    <a class="sidebar-link" href="{% url 'tickets:home' %}#incident-types">
+                        <i class="bi bi-grid" aria-hidden="true"></i>
+                        Nhóm sự cố
+                    </a>
+                    <a class="sidebar-link" href="{% url 'tickets:home' %}#report-guide">
+                        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                        Thông tin cần chuẩn bị
+                    </a>
+                {% endif %}
+
+                {% if request.user.is_authenticated %}
+                    <div class="mt-4 pt-3 border-top">
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="sidebar-link text-danger w-100 text-start bg-transparent border-0 py-2">
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                                Đăng xuất
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
             </nav>
             <div class="sidebar-footer"><span class="group-dot" aria-hidden="true"></span> Đồ án Helpdesk · Nhóm 2</div>
         </div>
@@ -72,13 +150,31 @@
                 <span class="topbar-title">{% block page_title %}Trang chủ{% endblock %}</span>
             </div>
             {% if request.user.is_authenticated %}
-                <div class="account-menu">
-                    <span class="account-avatar" aria-hidden="true">{{ request.user.get_username|first|upper }}</span>
-                    <div class="account-name text-end">
-                        <span class="d-block text-truncate" title="{{ request.user.get_username }}">Xin chào, <strong>{{ request.user.get_username }}</strong></span>
-                        {% if request.user.email %}<small class="d-block text-truncate" title="{{ request.user.email }}">{{ request.user.email }}</small>{% endif %}
+                <div class="d-flex align-items-center gap-3">
+                    <div class="dropdown d-none d-sm-block">
+                        <button class="btn btn-sm btn-light border position-relative rounded-pill px-2.5 py-1 text-secondary" type="button" id="topNotifDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Thông báo hệ thống">
+                            <i class="bi bi-bell"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle">
+                                <span class="visually-hidden">Thông báo</span>
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="topNotifDropdown" style="min-width: 260px;">
+                            <li class="dropdown-header fw-bold text-uppercase small">Hệ thống NOC</li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="px-3 py-2 text-muted small"><i class="bi bi-check-circle-fill text-success me-1"></i> Hạ tầng mạng hoạt động 99.98% uptime.</li>
+                        </ul>
                     </div>
-                    <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="logout-button" type="submit">Đăng xuất</button></form>
+                    <div class="account-menu">
+                        <span class="account-avatar" aria-hidden="true">{{ request.user.get_username|first|upper }}</span>
+                        <div class="account-name text-end">
+                            <span class="d-block text-truncate" title="{{ request.user.get_username }}">
+                                Xin chào, <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
+                                <span class="badge {{ role_badge_class }} ms-1" style="font-size: 11px;">{{ role_name }}</span>
+                            </span>
+                            {% if request.user.email %}<small class="d-block text-truncate" title="{{ request.user.email }}">{{ request.user.email }}</small>{% endif %}
+                        </div>
+                        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="logout-button" type="submit" title="Đăng xuất">Đăng xuất</button></form>
+                    </div>
                 </div>
             {% else %}<a class="text-link" href="{% url 'accounts:login' %}">Đăng nhập</a>{% endif %}
         </header>

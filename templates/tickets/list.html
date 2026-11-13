@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% block title %}Ticket của tôi · Helpdesk Nhóm 2{% endblock %}
-{% block page_title %}Ticket của tôi{% endblock %}
+{% block title %}{% if is_admin %}Quản lý Ticket · Helpdesk Nhóm 2{% else %}Ticket của tôi · Helpdesk Nhóm 2{% endif %}{% endblock %}
+{% block page_title %}{% if is_admin %}Quản lý Ticket{% else %}Ticket của tôi{% endif %}{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">THEO DÕI YÊU CẦU</p><h1>Ticket của tôi</h1><p>Xem trạng thái và tiếp tục trao đổi về các sự cố đã báo.</p></div><a class="btn btn-primary" href="{% url 'tickets:create' %}"><span aria-hidden="true">+</span> Tạo ticket</a></div>
+<div class="page-heading"><div><p class="eyebrow">{% if is_admin %}NOC DISPATCH &amp; MONITORING{% else %}THEO DÕI YÊU CẦU{% endif %}</p><h1>{% if is_admin %}Quản lý tất cả Ticket{% else %}Ticket của tôi{% endif %}</h1><p>{% if is_admin %}Quản lý và điều phối toàn bộ yêu cầu sự cố trong hệ thống mạng.{% else %}Xem trạng thái và tiếp tục trao đổi về các sự cố đã báo.{% endif %}</p></div><a class="btn btn-primary" href="{% url 'tickets:create' %}"><span aria-hidden="true">+</span> Tạo ticket</a></div>
 {% include 'tickets/_demo_banner.html' %}
 {% include 'tickets/_stats.html' %}
 <section class="surface ticket-list-panel" aria-labelledby="list-heading">
@@ -21,7 +21,7 @@
         <ul class="ticket-rows">
             {% for ticket in page_obj %}
             <li class="ticket-row">
-                <div class="ticket-summary"><span class="ticket-code">{{ ticket.code }}</span><h3><a href="{% url 'tickets:detail' ticket.id %}">{{ ticket.title }}</a></h3><p>{{ ticket.category_label }} <span aria-hidden="true">·</span> {{ ticket.location }}</p></div>
+                <div class="ticket-summary"><span class="ticket-code">{{ ticket.code }}</span><h3><a href="{% url 'tickets:detail' ticket.id %}">{{ ticket.title }}</a></h3><p>{{ ticket.category_label }} <span aria-hidden="true">·</span> {{ ticket.location }}{% if ticket.assigned_to %} <span aria-hidden="true">·</span> <span class="text-primary"><i class="bi bi-person-check"></i> {{ ticket.assignee_name }}</span>{% endif %}</p></div>
                 <div class="ticket-row-priority"><span class="mobile-label">Ưu tiên</span><span class="priority-label priority-{{ ticket.priority }}"><i aria-hidden="true"></i>{{ ticket.priority_label }}</span></div>
                 <div class="ticket-row-status"><span class="mobile-label">Trạng thái</span><span class="status-pill status-{{ ticket.status }}">{{ ticket.status_label }}</span></div>
                 <div class="ticket-row-date"><span class="mobile-label">Ngày tạo</span><time datetime="{{ ticket.created_at|date:'c' }}">{{ ticket.created_at|date:'d/m/Y' }}<small>{{ ticket.created_at|date:'H:i' }}</small></time></div>

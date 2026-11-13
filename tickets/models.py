@@ -196,6 +196,8 @@ class Ticket(models.Model):
         return True
 
     def change_status(self, new_status: str, by, note: str = "") -> bool:
+        if new_status == 'open':
+            new_status = 'new'
         if new_status not in dict(self.STATUS_CHOICES):
             raise ValidationError('Trạng thái không hợp lệ.')
         database = self._state.db or 'default'

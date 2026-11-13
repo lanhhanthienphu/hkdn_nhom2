@@ -1,3 +1,5 @@
+import datetime
+import json
 import logging
 
 from django.conf import settings
@@ -7,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.db.models.functions import Concat
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,6 +27,90 @@ from .models import Attachment, Comment, Ticket
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+def is_admin_user(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return bool(hasattr(user, 'profile') and user.profile.is_admin())
+
+
+def is_technician_user(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return bool(hasattr(user, 'profile') and user.profile.is_technician())
+
+
+def get_technicians_queryset():
+    tech_role_names = [
+        'technician', 'admin', 'it support', 'kỹ thuật viên',
+        'kythuatvien', 'support', 'quản trị viên', 'quantri'
+    ]
+    return User.objects.filter(
+        Q(is_superuser=True) |
+        Q(profile__role__name__in=tech_role_names)
+    ).filter(is_active=True).distinct().select_related('profile').order_by('first_name', 'username')
+
+
+def get_category_stats(base_qs=None):
+    if base_qs is None:
+        base_qs = Ticket.objects.all()
+
+    choice_dict = dict(Ticket.CATEGORY_CHOICES)
+    counts = {}
+    for cat_key, _ in Ticket.CATEGORY_CHOICES:
+        counts[cat_key] = 0
+
+    db_counts = base_qs.values('category').annotate(count=Count('id'))
+    for item in db_counts:
+        cat = item['category']
+        counts[cat] = item['count']
+        if cat not in choice_dict:
+            choice_dict[cat] = cat.capitalize()
+
+    labels = [choice_dict.get(k, k) for k in counts.keys()]
+    data = list(counts.values())
+    return labels, data
+
+
+def get_ticket_time_series():
+    today = timezone.localdate()
+
+    labels_7d, data_7d = [], []
+    for i in range(6, -1, -1):
+        day = today - datetime.timedelta(days=i)
+        day_start = timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
+        day_end = timezone.make_aware(datetime.datetime.combine(day, datetime.time.max))
+        cnt = Ticket.objects.filter(created_at__range=(day_start, day_end)).count()
+        labels_7d.append(day.strftime('%d/%m'))
+        data_7d.append(cnt)
+
+    labels_30d, data_30d = [], []
+    for i in range(29, -1, -1):
+        day = today - datetime.timedelta(days=i)
+        day_start = timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
+        day_end = timezone.make_aware(datetime.datetime.combine(day, datetime.time.max))
+        cnt = Ticket.objects.filter(created_at__range=(day_start, day_end)).count()
+        labels_30d.append(day.strftime('%d/%m'))
+        data_30d.append(cnt)
+
+    labels_months, data_months = [], []
+    for i in range(5, -1, -1):
+        m = (today.month - 1 - i) % 12 + 1
+        y = today.year + ((today.month - 1 - i) // 12)
+        cnt = Ticket.objects.filter(created_at__year=y, created_at__month=m).count()
+        labels_months.append(f"T{m:02d}")
+        data_months.append(cnt)
+
+    return {
+        'days_7': {'labels': labels_7d, 'data': data_7d},
+        'days_30': {'labels': labels_30d, 'data': data_30d},
+        'months': {'labels': labels_months, 'data': data_months},
+    }
 
 
 @require_GET
@@ -309,7 +395,7 @@ def ticket_detail(request, ticket_id):
                 return redirect(reverse('tickets:detail', args=[ticket_id]) + '#conversation')
         return render(request, 'tickets/detail.html', {'ticket': demo_store.present(ticket), 'form': form, 'ticket_demo_enabled': True})
 
-    ticket = Ticket.objects.select_related('created_by', 'assigned_to').filter(id=ticket_id).first()
+    ticket = Ticket.objects.select_related('created_by', 'created_by__profile', 'assigned_to', 'assigned_to__profile').filter(id=ticket_id).first()
     if ticket is None or not ticket.can_view(request.user):
         return render(request, '404.html', {
             'error_message': 'Ticket này không tồn tại hoặc bạn không có quyền xem.',
@@ -334,9 +420,24 @@ def ticket_detail(request, ticket_id):
                 messages.success(request, 'Đã thêm phản hồi thành công.')
                 return redirect(reverse('tickets:detail', args=[ticket_id]) + '#conversation')
 
+    user_admin = is_admin_user(request.user)
+    user_tech = is_technician_user(request.user)
+    technicians = get_technicians_queryset() if user_admin else []
+    histories = ticket.histories.select_related('changed_by', 'assigned_to').order_by('created_at')
+
     return render(request, 'tickets/detail.html', {
-        'ticket': ticket, 'form': form, 'ticket_demo_enabled': False,
+        'ticket': ticket,
+        'form': form,
+        'ticket_demo_enabled': False,
         'attachments': ticket.attachments.all(),
+        'technicians': technicians,
+        'histories': histories,
+        'user_is_admin': user_admin,
+        'user_is_tech': user_tech,
+        'can_assign': user_admin,
+        'can_claim': (user_tech and not user_admin and ticket.assigned_to_id != request.user.id),
+        'can_change_status': user_admin or user_tech or (ticket.created_by_id == request.user.id),
+        'statuses': Ticket.STATUS_CHOICES,
     })
 
 
@@ -368,8 +469,12 @@ def attachment_download(request, ticket_id, attachment_id):
 @never_cache
 def ticket_assign(request, ticket_id):
     user = request.user
-    is_tech = hasattr(user, 'profile') and user.profile.is_technician()
-    if not (is_tech or user.is_superuser):
+    if not user.is_authenticated:
+        return HttpResponseForbidden("Vui lòng đăng nhập.")
+
+    is_admin = is_admin_user(user)
+    is_tech = is_technician_user(user)
+    if not (is_tech or is_admin):
         return HttpResponseForbidden("Bạn không có quyền phân công sự cố.")
 
     ticket = get_object_or_404(Ticket, id=ticket_id)
@@ -382,7 +487,12 @@ def ticket_assign(request, ticket_id):
             raise ValueError
     except (TypeError, ValueError):
         raise Http404('Không tìm thấy kỹ thuật viên.')
+
     tech = get_object_or_404(User, id=tech_id)
+
+    # Requirement 2.2: Không cho phép kỹ thuật viên tự ý phân công Ticket cho người khác nếu không có quyền Admin.
+    if is_tech and not is_admin and tech.id != user.id:
+        return HttpResponseForbidden("Kỹ thuật viên không có quyền phân công ticket cho người khác.")
     try:
         changed = ticket.assign_technician(tech, by=user, note=note)
     except ValidationError as error:
@@ -392,6 +502,10 @@ def ticket_assign(request, ticket_id):
             messages.success(request, f"Đã phân công ticket cho kỹ thuật viên {tech.get_full_name() or tech.username}.")
         else:
             messages.info(request, 'Ticket đã được phân công cho người này.')
+
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and next_url.startswith('/'):
+        return redirect(next_url)
     return redirect('tickets:detail', ticket_id=ticket.id)
 
 
@@ -399,15 +513,21 @@ def ticket_assign(request, ticket_id):
 @never_cache
 def ticket_change_status(request, ticket_id):
     user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden("Vui lòng đăng nhập.")
+
     ticket = get_object_or_404(Ticket, id=ticket_id)
-    is_tech = hasattr(user, 'profile') and user.profile.is_technician()
+    is_admin = is_admin_user(user)
+    is_tech = is_technician_user(user)
     is_creator = ticket.created_by_id == user.id
 
     new_status = request.POST.get('status', '').strip()
+    if new_status == 'open':
+        new_status = 'new'
     if new_status not in dict(Ticket.STATUS_CHOICES):
         return HttpResponseForbidden("Trạng thái không hợp lệ.")
 
-    if not (is_tech or user.is_superuser or (is_creator and new_status == 'closed')):
+    if not (is_admin or is_tech or (is_creator and new_status == 'closed')):
         return HttpResponseForbidden("Bạn không có quyền thay đổi trạng thái ticket này.")
 
     note = request.POST.get('note', '').strip()
@@ -415,4 +535,349 @@ def ticket_change_status(request, ticket_id):
         messages.success(request, f"Đã cập nhật trạng thái thành {ticket.status_label}.")
     else:
         messages.info(request, 'Trạng thái ticket không thay đổi.')
+
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and next_url.startswith('/'):
+        return redirect(next_url)
     return redirect('tickets:detail', ticket_id=ticket.id)
+
+
+@login_required
+@never_cache
+def dashboard_dispatcher(request):
+    user = request.user
+    if is_admin_user(user):
+        return redirect('tickets:admin_dashboard')
+    elif is_technician_user(user):
+        return redirect('tickets:technician_dashboard')
+    return redirect('tickets:home')
+
+
+@login_required
+@never_cache
+def admin_dashboard(request):
+    user = request.user
+    if not is_admin_user(user):
+        return HttpResponseForbidden("Bạn không có quyền truy cập Dashboard Quản trị viên.")
+
+    base_qs = Ticket.objects.select_related('created_by', 'assigned_to').all()
+
+    # 1. Thống kê tổng quan thẻ cards
+    stats = {
+        'total': base_qs.count(),
+        'open': base_qs.filter(status='new').count(),
+        'in_progress': base_qs.filter(status='in_progress').count(),
+        'resolved': base_qs.filter(status='resolved').count(),
+        'closed': base_qs.filter(status='closed').count(),
+    }
+
+    # Thống kê theo mức độ ưu tiên
+    priority_stats = {
+        'urgent': base_qs.filter(priority='urgent').count(),
+        'high': base_qs.filter(priority='high').count(),
+        'normal': base_qs.filter(priority='normal').count(),
+        'low': base_qs.filter(priority='low').count(),
+    }
+
+    # Thống kê theo danh mục
+    category_labels, category_data = get_category_stats(base_qs)
+
+    # Time series cho biểu đồ xu hướng
+    time_series = get_ticket_time_series()
+
+    # Dữ liệu chuẩn bị cho 4 Chart.js
+    chart_data = {
+        'status': {
+            'labels': ['Chờ xử lý (Open)', 'Đang xử lý (In Progress)', 'Đã giải quyết (Resolved)', 'Đã đóng (Closed)'],
+            'data': [stats['open'], stats['in_progress'], stats['resolved'], stats['closed']],
+            'colors': ['#f59e0b', '#2563eb', '#10b981', '#64748b'],
+        },
+        'priority': {
+            'labels': ['Thấp (Low)', 'Bình thường (Normal)', 'Cao (High)', 'Khẩn cấp (Critical)'],
+            'data': [priority_stats['low'], priority_stats['normal'], priority_stats['high'], priority_stats['urgent']],
+            'colors': ['#10b981', '#0284c7', '#f97316', '#ef4444'],
+        },
+        'category': {
+            'labels': category_labels,
+            'data': category_data,
+            'colors': ['#2563eb', '#8b5cf6', '#0d9488', '#ea580c', '#6366f1', '#ec4899'],
+        },
+        'time_series': time_series,
+    }
+
+    # 2. Bộ lọc và danh sách Ticket mới nhất
+    qs = base_qs
+    query = request.GET.get('q', '').strip()[:150]
+    status = request.GET.get('status', '').strip()
+    priority = request.GET.get('priority', '').strip()
+    technician_id = request.GET.get('technician', '').strip()
+    date_filter = request.GET.get('date_range', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    sort = request.GET.get('sort', 'newest')
+
+    if status in dict(Ticket.STATUS_CHOICES):
+        qs = qs.filter(status=status)
+    elif status == 'open':
+        qs = qs.filter(status='new')
+
+    if priority in dict(Ticket.PRIORITY_CHOICES):
+        qs = qs.filter(priority=priority)
+
+    if technician_id == 'unassigned':
+        qs = qs.filter(assigned_to__isnull=True)
+    elif technician_id:
+        try:
+            t_id = int(technician_id)
+            qs = qs.filter(assigned_to_id=t_id)
+        except (ValueError, TypeError):
+            pass
+
+    # Lọc theo ngày tạo
+    today = timezone.localdate()
+    if date_filter == 'today':
+        qs = qs.filter(created_at__date=today)
+    elif date_filter == '7days':
+        qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=7))
+    elif date_filter == '30days':
+        qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=30))
+    elif date_filter == 'month':
+        qs = qs.filter(created_at__year=today.year, created_at__month=today.month)
+    elif date_from or date_to:
+        if date_from:
+            try:
+                df = datetime.datetime.strptime(date_from, '%Y-%m-%d').date()
+                qs = qs.filter(created_at__date__gte=df)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                dt = datetime.datetime.strptime(date_to, '%Y-%m-%d').date()
+                qs = qs.filter(created_at__date__lte=dt)
+            except ValueError:
+                pass
+
+    if query:
+        qs = qs.alias(reporter_full_name=Concat(
+            'created_by__first_name', Value(' '), 'created_by__last_name',
+        ))
+        q_filter = (
+            Q(title__icontains=query) |
+            Q(location__icontains=query) |
+            Q(created_by__username__icontains=query) |
+            Q(created_by__first_name__icontains=query) |
+            Q(created_by__last_name__icontains=query) |
+            Q(reporter_full_name__icontains=query)
+        )
+        raw_id = query[3:] if query.upper().startswith('HD-') else query
+        if raw_id.isascii() and raw_id.isdecimal():
+            ticket_id = int(raw_id)
+            if 0 < ticket_id <= 9223372036854775807:
+                q_filter |= Q(pk=ticket_id)
+        qs = qs.filter(q_filter)
+
+    if sort == 'oldest':
+        qs = qs.order_by('created_at', 'pk')
+    elif sort == 'priority':
+        qs = qs.annotate(
+            priority_rank=Case(
+                When(priority='urgent', then=Value(4)),
+                When(priority='high', then=Value(3)),
+                When(priority='normal', then=Value(2)),
+                When(priority='low', then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by('-priority_rank', '-created_at', '-pk')
+    else:
+        sort = 'newest'
+        qs = qs.order_by('-created_at', '-pk')
+
+    page = Paginator(qs, 10).get_page(request.GET.get('page'))
+    params = request.GET.copy()
+    params.pop('page', None)
+
+    technicians = get_technicians_queryset()
+
+    return render(request, 'tickets/admin_dashboard.html', {
+        'page_obj': page,
+        'stats': stats,
+        'priority_stats': priority_stats,
+        'chart_data_json': json.dumps(chart_data),
+        'chart_data': chart_data,
+        'query': query,
+        'status': status,
+        'priority': priority,
+        'technician_id': technician_id,
+        'date_filter': date_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'sort': sort,
+        'statuses': Ticket.STATUS_CHOICES,
+        'priorities': Ticket.PRIORITY_CHOICES,
+        'technicians': technicians,
+        'filter_query': params.urlencode(),
+        'has_filters': bool(query or status or priority or technician_id or date_filter or date_from or date_to),
+    })
+
+
+@login_required
+@never_cache
+def technician_dashboard(request):
+    user = request.user
+    if not is_technician_user(user):
+        return HttpResponseForbidden("Bạn không có quyền truy cập Dashboard Kỹ thuật viên.")
+
+    base_qs = Ticket.objects.select_related('created_by', 'assigned_to').filter(assigned_to=user)
+
+    stats = {
+        'total': base_qs.count(),
+        'open': base_qs.filter(status='new').count(),
+        'in_progress': base_qs.filter(status='in_progress').count(),
+        'resolved': base_qs.filter(status='resolved').count(),
+        'closed': base_qs.filter(status='closed').count(),
+    }
+
+    qs = base_qs
+    query = request.GET.get('q', '').strip()[:150]
+    status = request.GET.get('status', '').strip()
+    priority = request.GET.get('priority', '').strip()
+    date_filter = request.GET.get('date_range', '').strip()
+    sort = request.GET.get('sort', 'newest')
+
+    if status in dict(Ticket.STATUS_CHOICES):
+        qs = qs.filter(status=status)
+    elif status == 'open':
+        qs = qs.filter(status='new')
+
+    if priority in dict(Ticket.PRIORITY_CHOICES):
+        qs = qs.filter(priority=priority)
+
+    today = timezone.localdate()
+    if date_filter == 'today':
+        qs = qs.filter(created_at__date=today)
+    elif date_filter == '7days':
+        qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=7))
+    elif date_filter == '30days':
+        qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=30))
+
+    if query:
+        qs = qs.alias(reporter_full_name=Concat(
+            'created_by__first_name', Value(' '), 'created_by__last_name',
+        ))
+        q_filter = (
+            Q(title__icontains=query) |
+            Q(location__icontains=query) |
+            Q(created_by__username__icontains=query) |
+            Q(reporter_full_name__icontains=query)
+        )
+        raw_id = query[3:] if query.upper().startswith('HD-') else query
+        if raw_id.isascii() and raw_id.isdecimal():
+            ticket_id = int(raw_id)
+            if 0 < ticket_id <= 9223372036854775807:
+                q_filter |= Q(pk=ticket_id)
+        qs = qs.filter(q_filter)
+
+    if sort == 'oldest':
+        qs = qs.order_by('created_at', 'pk')
+    elif sort == 'priority':
+        qs = qs.annotate(
+            priority_rank=Case(
+                When(priority='urgent', then=Value(4)),
+                When(priority='high', then=Value(3)),
+                When(priority='normal', then=Value(2)),
+                When(priority='low', then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by('-priority_rank', '-created_at', '-pk')
+    else:
+        sort = 'newest'
+        qs = qs.order_by('-created_at', '-pk')
+
+    page = Paginator(qs, 10).get_page(request.GET.get('page'))
+    params = request.GET.copy()
+    params.pop('page', None)
+
+    return render(request, 'tickets/technician_dashboard.html', {
+        'page_obj': page,
+        'stats': stats,
+        'query': query,
+        'status': status,
+        'priority': priority,
+        'date_filter': date_filter,
+        'sort': sort,
+        'statuses': Ticket.STATUS_CHOICES,
+        'priorities': Ticket.PRIORITY_CHOICES,
+        'filter_query': params.urlencode(),
+        'has_filters': bool(query or status or priority or date_filter),
+    })
+
+
+@login_required
+@never_cache
+def reports_view(request):
+    user = request.user
+    if not (is_admin_user(user) or is_technician_user(user)):
+        return HttpResponseForbidden("Bạn không có quyền truy cập trang báo cáo thống kê.")
+
+    base_qs = Ticket.objects.select_related('created_by', 'assigned_to').all()
+
+    stats = {
+        'total': base_qs.count(),
+        'open': base_qs.filter(status='new').count(),
+        'in_progress': base_qs.filter(status='in_progress').count(),
+        'resolved': base_qs.filter(status='resolved').count(),
+        'closed': base_qs.filter(status='closed').count(),
+    }
+
+    priority_stats = {
+        'urgent': base_qs.filter(priority='urgent').count(),
+        'high': base_qs.filter(priority='high').count(),
+        'normal': base_qs.filter(priority='normal').count(),
+        'low': base_qs.filter(priority='low').count(),
+    }
+
+    category_labels, category_data = get_category_stats(base_qs)
+    time_series = get_ticket_time_series()
+
+    chart_data = {
+        'status': {
+            'labels': ['Chờ xử lý (Open)', 'Đang xử lý (In Progress)', 'Đã giải quyết (Resolved)', 'Đã đóng (Closed)'],
+            'data': [stats['open'], stats['in_progress'], stats['resolved'], stats['closed']],
+            'colors': ['#f59e0b', '#2563eb', '#10b981', '#64748b'],
+        },
+        'priority': {
+            'labels': ['Thấp (Low)', 'Bình thường (Normal)', 'Cao (High)', 'Khẩn cấp (Critical)'],
+            'data': [priority_stats['low'], priority_stats['normal'], priority_stats['high'], priority_stats['urgent']],
+            'colors': ['#10b981', '#0284c7', '#f97316', '#ef4444'],
+        },
+        'category': {
+            'labels': category_labels,
+            'data': category_data,
+            'colors': ['#2563eb', '#8b5cf6', '#0d9488', '#ea580c', '#6366f1', '#ec4899'],
+        },
+        'time_series': time_series,
+    }
+
+    tech_stats = []
+    technicians = get_technicians_queryset()
+    for tech in technicians:
+        assigned_cnt = Ticket.objects.filter(assigned_to=tech).count()
+        resolved_cnt = Ticket.objects.filter(assigned_to=tech, status__in=['resolved', 'closed']).count()
+        in_progress_cnt = Ticket.objects.filter(assigned_to=tech, status='in_progress').count()
+        tech_stats.append({
+            'tech': tech,
+            'total': assigned_cnt,
+            'resolved': resolved_cnt,
+            'in_progress': in_progress_cnt,
+        })
+    tech_stats.sort(key=lambda x: x['resolved'], reverse=True)
+
+    return render(request, 'tickets/reports.html', {
+        'stats': stats,
+        'priority_stats': priority_stats,
+        'chart_data_json': json.dumps(chart_data),
+        'chart_data': chart_data,
+        'tech_stats': tech_stats,
+    })

@@ -1,0 +1,681 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Quản Trị · Helpdesk Nhóm 2{% endblock %}
+{% block page_title %}Dashboard Quản Trị{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        height: 100%;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    }
+    .kpi-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+    .kpi-num {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-top: 10px;
+    }
+    .chart-box {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 22px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .chart-wrapper {
+        position: relative;
+        flex: 1;
+        min-height: 250px;
+        width: 100%;
+    }
+    .badge-urgent { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+    .badge-high { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+    .badge-normal { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-low { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    .badge-status-new { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-status-in_progress { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .badge-status-resolved { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-status-closed { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+    .filter-bar {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 20px;
+    }
+    .table-ticket th {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+        background: #f8fafc;
+        border-bottom: 1px solid var(--border);
+        padding: 12px 14px;
+    }
+    .table-ticket td {
+        padding: 14px;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+    }
+    .table-ticket tr:hover td {
+        background-color: #f8fafc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column gap-4">
+    <!-- Header banner -->
+    <div class="welcome-panel d-flex align-items-center justify-content-between p-4">
+        <div>
+            <p class="eyebrow mb-1 text-light opacity-75">NOC &amp; IT HELPDESK MANAGEMENT</p>
+            <h1 class="h3 mb-2 text-white">Dashboard Quản Trị Hệ Thống</h1>
+            <p class="mb-0 text-light opacity-90 small">Theo dõi toàn diện các sự cố mạng, điều phối kỹ thuật viên và kiểm soát chất lượng cam kết SLA.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'tickets:create' %}" class="btn btn-light fw-semibold text-primary">
+                <i class="bi bi-plus-lg me-1"></i> Báo sự cố mới
+            </a>
+            <a href="{% url 'tickets:reports' %}" class="btn btn-outline-light">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i> Báo cáo SLA
+            </a>
+        </div>
+    </div>
+
+    <!-- 1. THẺ THỐNG KÊ TỔNG QUAN -->
+    <div class="row g-3">
+        <!-- Tổng ticket -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="text-muted small fw-medium">Tổng Ticket</span>
+                    <div class="kpi-icon bg-primary-subtle text-primary">
+                        <i class="bi bi-receipt"></i>
+                    </div>
+                </div>
+                <div class="kpi-num text-dark">{{ stats.total }}</div>
+                <small class="text-muted mt-2"><i class="bi bi-database me-1"></i>Toàn hệ thống</small>
+            </div>
+        </div>
+
+        <!-- Chờ tiếp nhận (Open) -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="text-muted small fw-medium">Chờ tiếp nhận (Open)</span>
+                    <div class="kpi-icon bg-warning-subtle text-warning">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                </div>
+                <div class="kpi-num text-warning">{{ stats.open }}</div>
+                <small class="text-muted mt-2"><i class="bi bi-arrow-right-circle me-1"></i>Cần phân công</small>
+            </div>
+        </div>
+
+        <!-- Đang xử lý (In Progress) -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="text-muted small fw-medium">Đang xử lý</span>
+                    <div class="kpi-icon bg-info-subtle text-info">
+                        <i class="bi bi-gear-wide-connected"></i>
+                    </div>
+                </div>
+                <div class="kpi-num text-primary">{{ stats.in_progress }}</div>
+                <small class="text-muted mt-2"><i class="bi bi-tools me-1"></i>KTV đang xử lý</small>
+            </div>
+        </div>
+
+        <!-- Đã giải quyết (Resolved) -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="text-muted small fw-medium">Đã giải quyết</span>
+                    <div class="kpi-icon bg-success-subtle text-success">
+                        <i class="bi bi-check2-circle"></i>
+                    </div>
+                </div>
+                <div class="kpi-num text-success">{{ stats.resolved }}</div>
+                <small class="text-muted mt-2"><i class="bi bi-shield-check me-1"></i>Hoàn thành</small>
+            </div>
+        </div>
+
+        <!-- Đã đóng (Closed) -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="text-muted small fw-medium">Đã đóng</span>
+                    <div class="kpi-icon bg-secondary-subtle text-secondary">
+                        <i class="bi bi-archive"></i>
+                    </div>
+                </div>
+                <div class="kpi-num text-secondary">{{ stats.closed }}</div>
+                <small class="text-muted mt-2"><i class="bi bi-lock me-1"></i>Lưu trữ</small>
+            </div>
+        </div>
+
+        <!-- Sự cố khẩn cấp (P1 Critical) -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="kpi-card border-danger-subtle bg-danger-subtle bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="text-danger small fw-bold">Khẩn cấp (P1)</span>
+                    <div class="kpi-icon bg-danger-subtle text-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                </div>
+                <div class="kpi-num text-danger">{{ priority_stats.urgent }}</div>
+                <small class="text-danger fw-semibold mt-2"><i class="bi bi-alarm me-1"></i>Ưu tiên cao nhất</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. KHU VỰC 4 BIỂU ĐỒ CHART.JS -->
+    <div class="row g-3">
+        <!-- Biểu đồ 1: Doughnut Chart - Trạng thái Ticket -->
+        <div class="col-12 col-lg-6 col-xl-3">
+            <div class="chart-box">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-pie-chart text-primary me-2"></i>Trạng Thái Ticket</h2>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <div class="mt-3 text-center small text-muted">Phân bổ 4 trạng thái xử lý</div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ 2: Bar Chart - Mức độ ưu tiên -->
+        <div class="col-12 col-lg-6 col-xl-3">
+            <div class="chart-box">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-bar-chart text-danger me-2"></i>Mức Độ Ưu Tiên</h2>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="priorityChart"></canvas>
+                </div>
+                <div class="mt-3 text-center small text-muted">Tỷ trọng ưu tiên phân bổ nhân lực</div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ 3: Line Chart - Ticket theo thời gian -->
+        <div class="col-12 col-lg-8 col-xl-3">
+            <div class="chart-box">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-graph-up text-info me-2"></i>Sự Cố Theo Thời Gian</h2>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-sm active" id="btn7d" onclick="switchTimeRange('days_7')">7 ngày</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn30d" onclick="switchTimeRange('days_30')">30 ngày</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnMonths" onclick="switchTimeRange('months')">Tháng</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="timeSeriesChart"></canvas>
+                </div>
+                <div class="mt-3 text-center small text-muted">Số lượng ticket phát sinh theo thời gian</div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ 4: Phân loại theo Danh mục -->
+        <div class="col-12 col-lg-4 col-xl-3">
+            <div class="chart-box">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-hdd-network text-success me-2"></i>Theo Danh Mục</h2>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="mt-3 text-center small text-muted">Cơ cấu nguyên nhân sự cố mạng</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. DANH SÁCH TICKET & BỘ LỌC TÌM KIẾM -->
+    <div class="bg-white border rounded-3 p-4 shadow-sm">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+                <h2 class="h5 mb-1 fw-bold text-dark">
+                    <i class="bi bi-list-task text-primary me-2"></i>Danh Sách Ticket Mới Nhất
+                </h2>
+                <p class="text-muted small mb-0">Xem toàn bộ ticket, tìm kiếm, lọc theo tiêu chí và điều phối kỹ thuật viên phụ trách.</p>
+            </div>
+            <div class="text-muted small">
+                Hiển thị <strong>{{ page_obj.start_index|default:0 }}–{{ page_obj.end_index|default:0 }}</strong> trong tổng số <strong>{{ page_obj.paginator.count }}</strong> ticket
+            </div>
+        </div>
+
+        <!-- Form bộ lọc -->
+        <form method="get" class="filter-bar mb-4 bg-light">
+            <div class="row g-2">
+                <!-- Search input -->
+                <div class="col-12 col-lg-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="search" name="q" value="{{ query }}" class="form-control border-start-0" placeholder="Mã HD-*, tiêu đề, người gửi…">
+                    </div>
+                </div>
+
+                <!-- Lọc trạng thái -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <select name="status" class="form-select">
+                        <option value="">-- Trạng thái --</option>
+                        {% for val, lbl in statuses %}
+                            <option value="{{ val }}"{% if status == val %} selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Lọc độ ưu tiên -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <select name="priority" class="form-select">
+                        <option value="">-- Mức ưu tiên --</option>
+                        {% for val, lbl in priorities %}
+                            <option value="{{ val }}"{% if priority == val %} selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Lọc kỹ thuật viên phụ trách -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <select name="technician" class="form-select">
+                        <option value="">-- Kỹ thuật viên --</option>
+                        <option value="unassigned"{% if technician_id == 'unassigned' %} selected{% endif %}>[Chưa phân công]</option>
+                        {% for tech in technicians %}
+                            <option value="{{ tech.id }}"{% if technician_id == tech.id|stringformat:"s" %} selected{% endif %}>
+                                {{ tech.get_full_name|default:tech.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Lọc thời gian tạo -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <select name="date_range" class="form-select">
+                        <option value="">-- Thời gian tạo --</option>
+                        <option value="today"{% if date_filter == 'today' %} selected{% endif %}>Hôm nay</option>
+                        <option value="7days"{% if date_filter == '7days' %} selected{% endif %}>7 ngày qua</option>
+                        <option value="30days"{% if date_filter == '30days' %} selected{% endif %}>30 ngày qua</option>
+                        <option value="month"{% if date_filter == 'month' %} selected{% endif %}>Tháng này</option>
+                    </select>
+                </div>
+
+                <!-- Nút lọc & xóa -->
+                <div class="col-12 col-lg-1 d-flex gap-1">
+                    <button type="submit" class="btn btn-primary w-100" title="Áp dụng lọc">
+                        <i class="bi bi-funnel-fill"></i>
+                    </button>
+                    {% if has_filters %}
+                        <a href="{% url 'tickets:admin_dashboard' %}" class="btn btn-outline-secondary" title="Xóa bộ lọc">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        <!-- Bảng danh sách Ticket -->
+        <div class="table-responsive">
+            <table class="table table-hover table-ticket mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 110px;">Mã Ticket</th>
+                        <th>Tiêu đề sự cố</th>
+                        <th>Người gửi</th>
+                        <th>Kỹ thuật viên</th>
+                        <th>Danh mục</th>
+                        <th>Mức ưu tiên</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th class="text-end" style="width: 140px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in page_obj %}
+                    <tr>
+                        <td>
+                            <strong class="text-primary font-monospace">{{ ticket.code }}</strong>
+                        </td>
+                        <td>
+                            <a href="{% url 'tickets:detail' ticket.id %}" class="text-dark fw-semibold text-decoration-none d-block">
+                                {{ ticket.title }}
+                            </a>
+                            <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ ticket.location }}</small>
+                        </td>
+                        <td>
+                            <span class="d-block fw-medium">{{ ticket.created_by.get_full_name|default:ticket.created_by.username }}</span>
+                            {% if ticket.created_by.email %}<small class="text-muted">{{ ticket.created_by.email }}</small>{% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.assigned_to %}
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-person-check text-primary me-1"></i>{{ ticket.assignee_name }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">
+                                    Chưa phân công
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-secondary">{{ ticket.category_label }}</span>
+                        </td>
+                        <td>
+                            {% if ticket.priority == 'urgent' %}
+                                <span class="badge badge-urgent"><i class="bi bi-exclamation-circle me-1"></i>Khẩn cấp</span>
+                            {% elif ticket.priority == 'high' %}
+                                <span class="badge badge-high">Cao</span>
+                            {% elif ticket.priority == 'normal' %}
+                                <span class="badge badge-normal">Bình thường</span>
+                            {% else %}
+                                <span class="badge badge-low">Thấp</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.status == 'new' %}
+                                <span class="badge badge-status-new">Mới tiếp nhận</span>
+                            {% elif ticket.status == 'in_progress' %}
+                                <span class="badge badge-status-in_progress">Đang xử lý</span>
+                            {% elif ticket.status == 'resolved' %}
+                                <span class="badge badge-status-resolved">Đã giải quyết</span>
+                            {% else %}
+                                <span class="badge badge-status-closed">Đã đóng</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted font-monospace small">
+                            {{ ticket.created_at|date:"d/m/Y H:i" }}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'tickets:detail' ticket.id %}" class="btn btn-outline-primary" title="Xem chi tiết">
+                                    <i class="bi bi-eye"></i> Xem
+                                </a>
+                                <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Thao tác</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><h6 class="dropdown-header">Điều phối ticket</h6></li>
+                                    <li>
+                                        <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#assignModal{{ ticket.id }}">
+                                            <i class="bi bi-person-plus text-primary me-2"></i>Giao kỹ thuật viên
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Chuyển trạng thái</h6></li>
+                                    <li>
+                                        <form method="post" action="{% url 'tickets:change_status' ticket.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="in_progress">
+                                            <input type="hidden" name="note" value="Chuyển sang Đang xử lý từ Dashboard">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="dropdown-item text-primary"><i class="bi bi-play-circle me-2"></i>Đang xử lý</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'tickets:change_status' ticket.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="resolved">
+                                            <input type="hidden" name="note" value="Đánh dấu Đã giải quyết từ Dashboard">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="dropdown-item text-success"><i class="bi bi-check-circle me-2"></i>Đã giải quyết</button>
+                                        </form>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'tickets:change_status' ticket.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="closed">
+                                            <input type="hidden" name="note" value="Đóng ticket từ Dashboard">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="dropdown-item text-secondary"><i class="bi bi-x-circle me-2"></i>Đóng ticket</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Modal Phân công kỹ thuật viên cho từng ticket -->
+                            <div class="modal fade text-start" id="assignModal{{ ticket.id }}" tabindex="-1" aria-labelledby="assignModalLabel{{ ticket.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" action="{% url 'tickets:assign' ticket.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title h6 fw-bold" id="assignModalLabel{{ ticket.id }}">
+                                                    Phân công xử lý: {{ ticket.code }}
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p class="mb-2"><strong>Sự cố:</strong> {{ ticket.title }}</p>
+                                                <p class="mb-3 text-muted small"><strong>Phụ trách hiện tại:</strong> {{ ticket.assignee_name }}</p>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Chọn Kỹ thuật viên phụ trách:</label>
+                                                    <select name="technician_id" class="form-select" required>
+                                                        <option value="">-- Chọn kỹ thuật viên --</option>
+                                                        {% for tech in technicians %}
+                                                            <option value="{{ tech.id }}"{% if ticket.assigned_to_id == tech.id %} selected{% endif %}>
+                                                                {{ tech.get_full_name|default:tech.username }} {% if tech.profile.department %}({{ tech.profile.department }}){% endif %}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Ghi chú phân công (tùy chọn):</label>
+                                                    <textarea name="note" class="form-control" rows="2" placeholder="Nêu chỉ đạo hoặc lưu ý điều phối…"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                                                <button type="submit" class="btn btn-primary btn-sm">Lưu phân công</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                            Không có ticket nào phù hợp với bộ lọc hiện tại.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Phân trang -->
+        {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+            <span class="text-muted small">
+                Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+            </span>
+            <nav aria-label="Phân trang ticket">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{{ filter_query }}&amp;page=1">&laquo; Đầu</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{{ filter_query }}&amp;page={{ page_obj.previous_page_number }}">Trước</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{{ filter_query }}&amp;page={{ page_obj.next_page_number }}">Sau</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{{ filter_query }}&amp;page={{ page_obj.paginator.num_pages }}">Cuối &raquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Tích hợp Chart.js từ CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Nhận dữ liệu thực tế từ Django Context (được serialize JSON an toàn)
+    const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
+
+    // 1. Biểu đồ trạng thái (Doughnut Chart)
+    const ctxStatus = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctxStatus, {
+        type: 'doughnut',
+        data: {
+            labels: chartData.status.labels,
+            datasets: [{
+                data: chartData.status.data,
+                backgroundColor: chartData.status.colors,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            },
+            cutout: '65%'
+        }
+    });
+
+    // 2. Biểu đồ mức độ ưu tiên (Bar Chart)
+    const ctxPriority = document.getElementById('priorityChart').getContext('2d');
+    new Chart(ctxPriority, {
+        type: 'bar',
+        data: {
+            labels: chartData.priority.labels,
+            datasets: [{
+                label: 'Số lượng sự cố',
+                data: chartData.priority.data,
+                backgroundColor: chartData.priority.colors,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+
+    // 3. Biểu đồ theo thời gian (Line Chart)
+    const ctxTime = document.getElementById('timeSeriesChart').getContext('2d');
+    let timeChart = new Chart(ctxTime, {
+        type: 'line',
+        data: {
+            labels: chartData.time_series.days_7.labels,
+            datasets: [{
+                label: 'Ticket phát sinh',
+                data: chartData.time_series.days_7.data,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.35,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#2563eb'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
+    });
+
+    // Chuyển đổi khoảng thời gian cho biểu đồ đường
+    function switchTimeRange(rangeKey) {
+        document.getElementById('btn7d').classList.remove('active');
+        document.getElementById('btn30d').classList.remove('active');
+        document.getElementById('btnMonths').classList.remove('active');
+
+        if (rangeKey === 'days_7') {
+            document.getElementById('btn7d').classList.add('active');
+            timeChart.data.labels = chartData.time_series.days_7.labels;
+            timeChart.data.datasets[0].data = chartData.time_series.days_7.data;
+        } else if (rangeKey === 'days_30') {
+            document.getElementById('btn30d').classList.add('active');
+            timeChart.data.labels = chartData.time_series.days_30.labels;
+            timeChart.data.datasets[0].data = chartData.time_series.days_30.data;
+        } else if (rangeKey === 'months') {
+            document.getElementById('btnMonths').classList.add('active');
+            timeChart.data.labels = chartData.time_series.months.labels;
+            timeChart.data.datasets[0].data = chartData.time_series.months.data;
+        }
+        timeChart.update();
+    }
+
+    // 4. Biểu đồ theo danh mục sự cố (Doughnut / Polar Chart)
+    const ctxCat = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctxCat, {
+        type: 'doughnut',
+        data: {
+            labels: chartData.category.labels,
+            datasets: [{
+                data: chartData.category.data,
+                backgroundColor: chartData.category.colors,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            },
+            cutout: '55%'
+        }
+    });
+</script>
+{% endblock %}
+
