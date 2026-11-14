@@ -11,7 +11,7 @@ from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.db.models.functions import Concat
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import FileResponse, Http404, HttpResponseForbidden, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -24,6 +24,7 @@ from . import demo_store
 from .attachment_services import create_ticket_with_attachment
 from .forms import ReplyForm, TicketForm
 from .models import Attachment, Comment, Ticket
+from .reporting import ReportFilterForm, report_csv_rows, report_technician_stats, report_time_series
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -900,32 +901,39 @@ def technician_dashboard(request):
     })
 
 
-@login_required
-@never_cache
-def reports_view(request):
-    user = request.user
-    if not (is_admin_user(user) or is_technician_user(user)):
-        return HttpResponseForbidden("Bạn không có quyền truy cập trang báo cáo thống kê.")
-
+def _report_scope(request):
+    # Include historical assignees, even if their account is now inactive.
+    technicians = list(User.objects.filter(
+        Q(pk__in=get_technicians_queryset().values('pk')) | Q(assigned_tickets__isnull=False)
+    ).distinct().select_related('profile').order_by('first_name', 'username'))
+    form = ReportFilterForm(request.GET, technicians=technicians)
     base_qs = Ticket.objects.select_related('created_by', 'assigned_to').all()
+    queryset = form.filter_queryset(base_qs) if form.is_valid() else base_qs.none()
+    return form, queryset, technicians
+
+
+def _report_context(form, base_qs, technicians):
+    totals = base_qs.aggregate(
+        total=Count('pk'), unassigned=Count('pk', filter=Q(assigned_to__isnull=True)),
+        **{f'status_{key}': Count('pk', filter=Q(status=key)) for key, _ in Ticket.STATUS_CHOICES},
+        **{f'priority_{key}': Count('pk', filter=Q(priority=key)) for key, _ in Ticket.PRIORITY_CHOICES},
+    )
 
     stats = {
-        'total': base_qs.count(),
-        'open': base_qs.filter(status='new').count(),
-        'in_progress': base_qs.filter(status='in_progress').count(),
-        'resolved': base_qs.filter(status='resolved').count(),
-        'closed': base_qs.filter(status='closed').count(),
+        'total': totals['total'], 'unassigned': totals['unassigned'],
+        'open': totals['status_new'], 'in_progress': totals['status_in_progress'],
+        'resolved': totals['status_resolved'], 'closed': totals['status_closed'],
+        'completed': totals['status_resolved'] + totals['status_closed'],
     }
 
-    priority_stats = {
-        'urgent': base_qs.filter(priority='urgent').count(),
-        'high': base_qs.filter(priority='high').count(),
-        'normal': base_qs.filter(priority='normal').count(),
-        'low': base_qs.filter(priority='low').count(),
-    }
+    priority_stats = {key: totals[f'priority_{key}'] for key, _ in Ticket.PRIORITY_CHOICES}
 
     category_labels, category_data = get_category_stats(base_qs)
-    time_series = get_ticket_time_series()
+    valid = form.is_valid()
+    today = timezone.localdate()
+    start = form.cleaned_data.get('date_from') if valid else None
+    anchor = (form.cleaned_data.get('date_to') or max(today, start or today)) if valid else today
+    time_series = report_time_series(base_qs, anchor=anchor)
 
     chart_data = {
         'status': {
@@ -946,24 +954,45 @@ def reports_view(request):
         'time_series': time_series,
     }
 
-    tech_stats = []
-    technicians = get_technicians_queryset()
-    for tech in technicians:
-        assigned_cnt = Ticket.objects.filter(assigned_to=tech).count()
-        resolved_cnt = Ticket.objects.filter(assigned_to=tech, status__in=['resolved', 'closed']).count()
-        in_progress_cnt = Ticket.objects.filter(assigned_to=tech, status='in_progress').count()
-        tech_stats.append({
-            'tech': tech,
-            'total': assigned_cnt,
-            'resolved': resolved_cnt,
-            'in_progress': in_progress_cnt,
-        })
-    tech_stats.sort(key=lambda x: x['resolved'], reverse=True)
-
-    return render(request, 'tickets/reports.html', {
+    selected = form.cleaned_data.get('technician', '') if valid else ''
+    return {
+        'report_form': form,
+        'report_filters_valid': valid,
+        'report_filter_query': form.query_string(),
+        'report_timezone': timezone.get_current_timezone_name(),
+        'report_anchor': anchor,
         'stats': stats,
         'priority_stats': priority_stats,
         'chart_data_json': json.dumps(chart_data),
         'chart_data': chart_data,
-        'tech_stats': tech_stats,
-    })
+        'tech_stats': report_technician_stats(base_qs, technicians, selected),
+    }
+
+
+@login_required
+@never_cache
+@require_safe
+def reports_view(request):
+    if not (is_admin_user(request.user) or is_technician_user(request.user)):
+        return HttpResponseForbidden('Bạn không có quyền truy cập trang báo cáo thống kê.')
+    form, queryset, technicians = _report_scope(request)
+    return render(request, 'tickets/reports.html', _report_context(form, queryset, technicians),
+                  status=200 if form.is_valid() else 400)
+
+
+@login_required
+@never_cache
+@require_safe
+def reports_export_csv(request):
+    if not (is_admin_user(request.user) or is_technician_user(request.user)):
+        return HttpResponseForbidden('Bạn không có quyền xuất báo cáo thống kê.')
+    form, queryset, technicians = _report_scope(request)
+    if not form.is_valid():
+        return render(request, 'tickets/reports.html', _report_context(form, queryset, technicians), status=400)
+    filename = f'helpdesk-tickets-{timezone.localtime():%Y%m%d-%H%M%S}.csv'
+    response = StreamingHttpResponse(
+        report_csv_rows(queryset, zone=timezone.get_current_timezone()), content_type='text/csv; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
