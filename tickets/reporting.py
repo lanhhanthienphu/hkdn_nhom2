@@ -11,6 +11,7 @@ from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 
 from .models import Ticket
+from .resolution_metrics import resolution_minutes, with_first_resolution
 
 
 def _day_boundary(day, *, end=False):
@@ -166,10 +167,13 @@ def report_csv_rows(queryset, *, zone=None):
     yield writer.writerow([
         'Mã ticket', 'Tiêu đề', 'Nhóm sự cố', 'Độ ưu tiên', 'Trạng thái',
         'Vị trí', 'Người gửi', 'Người phụ trách', 'Ngày tạo (ISO 8601)',
+        'Ngày giải quyết lần đầu (ISO 8601)', 'Thời gian giải quyết lần đầu (phút)',
     ])
-    for ticket in queryset.order_by('-created_at', '-pk').iterator(chunk_size=1000):
+    for ticket in with_first_resolution(queryset).order_by('-created_at', '-pk').iterator(chunk_size=1000):
         yield writer.writerow([_csv_text(value) for value in (
             ticket.code, ticket.title, ticket.category_label, ticket.priority_label,
             ticket.status_label, ticket.location, ticket.reporter, ticket.assignee_name,
             timezone.localtime(ticket.created_at, zone).isoformat(timespec='seconds'),
+            timezone.localtime(ticket.first_resolved_at, zone).isoformat(timespec='seconds') if ticket.first_resolved_at else '',
+            resolution_minutes(ticket.first_resolution_duration),
         )])

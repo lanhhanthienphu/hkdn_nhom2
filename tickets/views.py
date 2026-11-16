@@ -25,6 +25,7 @@ from .attachment_services import create_ticket_with_attachment
 from .forms import ReplyForm, TicketForm
 from .models import Attachment, Comment, Ticket
 from .reporting import ReportFilterForm, report_csv_rows, report_technician_stats, report_time_series
+from .resolution_metrics import first_resolution_row, first_resolution_summary, with_first_resolution
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -912,7 +913,7 @@ def _report_scope(request):
     return form, queryset, technicians
 
 
-def _report_context(form, base_qs, technicians):
+def _report_context(form, base_qs, technicians, resolution_page=None):
     totals = base_qs.aggregate(
         total=Count('pk'), unassigned=Count('pk', filter=Q(assigned_to__isnull=True)),
         **{f'status_{key}': Count('pk', filter=Q(status=key)) for key, _ in Ticket.STATUS_CHOICES},
@@ -955,6 +956,9 @@ def _report_context(form, base_qs, technicians):
     }
 
     selected = form.cleaned_data.get('technician', '') if valid else ''
+    resolution_tickets = with_first_resolution(base_qs).order_by('-created_at', '-pk')
+    resolution_stats = first_resolution_summary(resolution_tickets)
+    resolution_page_obj = Paginator(resolution_tickets, 10).get_page(resolution_page)
     return {
         'report_form': form,
         'report_filters_valid': valid,
@@ -966,6 +970,9 @@ def _report_context(form, base_qs, technicians):
         'chart_data_json': json.dumps(chart_data),
         'chart_data': chart_data,
         'tech_stats': report_technician_stats(base_qs, technicians, selected),
+        'resolution_stats': resolution_stats,
+        'resolution_page_obj': resolution_page_obj,
+        'resolution_rows': [first_resolution_row(ticket) for ticket in resolution_page_obj],
     }
 
 
@@ -976,7 +983,8 @@ def reports_view(request):
     if not (is_admin_user(request.user) or is_technician_user(request.user)):
         return HttpResponseForbidden('Bạn không có quyền truy cập trang báo cáo thống kê.')
     form, queryset, technicians = _report_scope(request)
-    return render(request, 'tickets/reports.html', _report_context(form, queryset, technicians),
+    context = _report_context(form, queryset, technicians, request.GET.get('resolution_page'))
+    return render(request, 'tickets/reports.html', context,
                   status=200 if form.is_valid() else 400)
 
 
