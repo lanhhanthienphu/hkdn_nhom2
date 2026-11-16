@@ -87,6 +87,26 @@
         Có <strong>{{ stats.total }} ticket</strong> phù hợp, trong đó {{ stats.unassigned }} ticket chưa phân công.
         {% if not stats.total %}Không có ticket phù hợp với bộ lọc. File CSV vẫn có hàng tiêu đề.{% endif %}
     </div>
+    <section aria-labelledby="resolution-summary-heading">
+        <h2 id="resolution-summary-heading" class="h5 mb-2">Thời gian giải quyết lần đầu</h2>
+        <p class="small text-muted">Tính từ lúc tạo ticket đến lần đầu chuyển sang Đã xử lý, bao gồm thời gian chờ. Ticket đã mở lại vẫn dùng lần đầu; ticket thiếu lịch sử không được tính trung bình.</p>
+        <div class="row g-3">
+            <div class="col-12 col-md-6 col-xl-3"><div class="report-card">
+                <h3 class="h6 text-muted">Thời gian trung bình</h3>
+                <p class="h4 mb-0" data-resolution-average>{{ resolution_stats.average_label }}</p>
+            </div></div>
+            <div class="col-12 col-md-6 col-xl-3"><div class="report-card">
+                <h3 class="h6 text-muted">Ticket đủ dữ liệu</h3><p class="h3 mb-0">{{ resolution_stats.measured }}</p>
+            </div></div>
+            <div class="col-12 col-md-6 col-xl-3"><div class="report-card">
+                <h3 class="h6 text-muted">Chưa giải quyết</h3><p class="h3 mb-0">{{ resolution_stats.pending }}</p>
+            </div></div>
+            <div class="col-12 col-md-6 col-xl-3"><div class="report-card">
+                <h3 class="h6 text-muted">Chưa đủ dữ liệu</h3><p class="h3 mb-0">{{ resolution_stats.missing }}</p>
+            </div></div>
+        </div>
+    </section>
+
     <!-- 4 Biểu đồ phân tích chính -->
     <div class="row g-4">
         <!-- Biểu đồ 1: Doughnut Chart - Trạng thái Ticket -->
@@ -156,6 +176,39 @@
             </div>
         </div>
     </div>
+
+    <section id="resolution-times" class="bg-white border rounded-3 p-4 shadow-sm" aria-labelledby="resolution-table-heading">
+        <h2 id="resolution-table-heading" class="h5 mb-2">Chi tiết thời gian giải quyết lần đầu</h2>
+        <p class="text-muted small">Ngày, giờ theo múi giờ {{ report_timezone }}. CSV xuất toàn bộ ticket theo bộ lọc, kèm thời gian giải quyết tính bằng phút.</p>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr>
+                    <th>Mã ticket / Tiêu đề</th><th>Người phụ trách hiện tại</th>
+                    <th>Ngày tạo</th><th>Giải quyết lần đầu</th><th>Thời gian giải quyết</th>
+                </tr></thead>
+                <tbody>
+                {% for row in resolution_rows %}
+                <tr>
+                    <td><a href="{% url 'tickets:detail' row.ticket.pk %}">{{ row.ticket.code }}</a><span class="d-block">{{ row.ticket.title }}</span></td>
+                    <td>{{ row.ticket.assignee_name }}</td>
+                    <td><time datetime="{{ row.ticket.created_at|date:'c' }}">{{ row.ticket.created_at|date:'H:i:s, d/m/Y' }}</time></td>
+                    <td>{% if row.resolved_at %}<time datetime="{{ row.resolved_at|date:'c' }}">{{ row.resolved_at|date:'H:i:s, d/m/Y' }}</time>{% else %}—{% endif %}</td>
+                    <td>{% if row.state == 'measured' %}{{ row.duration_label }}{% else %}<span class="text-muted">{{ row.state_label }}</span>{% endif %}</td>
+                </tr>
+                {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">Không có ticket phù hợp để hiển thị thời gian giải quyết.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if resolution_page_obj.has_other_pages %}
+        <nav class="mt-3" aria-label="Phân trang thời gian giải quyết">
+            <ul class="pagination justify-content-center flex-wrap mb-0">
+                {% if resolution_page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?{% if report_filter_query %}{{ report_filter_query }}&amp;{% endif %}resolution_page={{ resolution_page_obj.previous_page_number }}#resolution-times">Trang trước</a></li>{% endif %}
+                <li class="page-item active"><span class="page-link" aria-current="page">Trang {{ resolution_page_obj.number }} / {{ resolution_page_obj.paginator.num_pages }}</span></li>
+                {% if resolution_page_obj.has_next %}<li class="page-item"><a class="page-link" href="?{% if report_filter_query %}{{ report_filter_query }}&amp;{% endif %}resolution_page={{ resolution_page_obj.next_page_number }}#resolution-times">Trang sau</a></li>{% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </section>
 
     <!-- Bảng hiệu suất phân bổ & giải quyết của Kỹ thuật viên -->
     <div class="bg-white border rounded-3 p-4 shadow-sm">

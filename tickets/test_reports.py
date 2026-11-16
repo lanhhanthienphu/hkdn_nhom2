@@ -134,7 +134,7 @@ class ReportFilterAndCsvTests(TestCase):
         _, content, rows = self.download(params)
         self.assertTrue(content.startswith(b'\xef\xbb\xbf'))
         self.assertEqual(len(rows), 1)
-        self.assertEqual(len(rows[0]), 9)
+        self.assertEqual(len(rows[0]), 11)
 
     def test_no_filters_preserve_current_global_report(self):
         response = self.client.get(self.page_url)
@@ -224,7 +224,7 @@ class ReportFilterAndCsvTests(TestCase):
         _, _, rows = self.download({**self.day_filter, 'status': 'resolved'})
         self.assertEqual(rows[1][1], title)
         self.assertEqual(len(rows), 2)
-        self.assertEqual(len(rows[1]), 9)
+        self.assertEqual(len(rows[1]), 11)
 
     def test_csv_keeps_request_timezone_when_stream_is_consumed_later(self):
         with timezone.override('Asia/Ho_Chi_Minh'):
@@ -244,7 +244,7 @@ class ReportFilterAndCsvTests(TestCase):
                 Ticket.objects.filter(pk=self.last.pk).update(title=formula)
                 _, _, rows = self.download({**self.day_filter, 'status': 'resolved'})
                 self.assertEqual(rows[1][1], '\t' + formula)
-                self.assertEqual(len(rows[1]), 9)
+                self.assertEqual(len(rows[1]), 11)
 
     def test_csv_exports_all_matching_rows_beyond_any_page_size(self):
         Ticket.objects.bulk_create([
@@ -265,7 +265,7 @@ class ReportFilterAndCsvTests(TestCase):
                                   original_name='private-name.log', size=42, uploaded_by=self.owner)
         with patch('tickets.attachment_storage.PrivateAttachmentStorage.open', side_effect=AssertionError('must not read files')):
             _, content, rows = self.download()
-        self.assertEqual(len(rows[0]), 9)
+        self.assertEqual(len(rows[0]), 11)
         self.assertNotIn(b'private-path', content)
         self.assertNotIn(b'private-name', content)
         self.assertNotIn('Mô tả nội bộ', content.decode('utf-8-sig'))

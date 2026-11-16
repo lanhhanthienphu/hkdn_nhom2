@@ -1,5 +1,7 @@
 # Backend 2 — Lọc báo cáo và xuất CSV
 
+Bản nối tiếp đã bổ sung thời gian giải quyết lần đầu và 2 cột CSV. Hướng dẫn áp dụng bản nối tiếp, quy ước tính và kiểm thử hiện tại nằm trong [BACKEND2_RESOLUTION_METRICS.md](BACKEND2_RESOLUTION_METRICS.md). Các bước áp dụng bên dưới mô tả bản lọc/CSV ban đầu.
+
 Bản vá `backend2-report-filters-csv.patch` dùng trên nền `master` tại `cf35d7db5dc30d945a5765c0a17c9da1cb832e50` (179 test).
 Tiếp tục làm việc trên nhánh `backend/lam`. Bản vá bổ sung chức năng cho trang Báo cáo đang có, sử dụng model và quyền của hệ thống hiện tại.
 
@@ -9,7 +11,7 @@ Tiếp tục làm việc trên nhánh `backend/lam`. Bản vá bổ sung chức 
 - Chọn riêng ticket chưa phân công; có thể lọc người phụ trách cũ đã bị vô hiệu hóa nếu vẫn còn ticket được gán.
 - Các số tổng hợp, biểu đồ và bảng kỹ thuật viên lấy từ cùng tập ticket đã lọc.
 - Xuất toàn bộ ticket phù hợp ra CSV, không giới hạn theo trang danh sách.
-- CSV gồm 9 cột: mã, tiêu đề, nhóm, ưu tiên, trạng thái, vị trí, người gửi, người phụ trách và ngày tạo.
+- CSV ban đầu gồm 9 cột: mã, tiêu đề, nhóm, ưu tiên, trạng thái, vị trí, người gửi, người phụ trách và ngày tạo. Bản thời gian giải quyết bổ sung ngày giải quyết lần đầu và thời gian giải quyết tính bằng phút, thành 11 cột.
 - File dùng UTF-8 có BOM để đọc tiếng Việt trong Excel; hỗ trợ dấu phẩy, dấu nháy và xuống dòng trong một ô.
 - Bộ lọc sai được hiển thị lỗi, trả HTTP 400 và không xuất file hoặc tự chuyển sang báo cáo toàn bộ.
 - Nút Về Dashboard dẫn qua bộ điều hướng theo vai trò, dùng được cho quản trị viên và kỹ thuật viên.
@@ -104,7 +106,7 @@ Page và CSV dùng chung form xác thực và cách lọc. CSV đọc dữ liệ
 - Tổng hợp xu hướng dùng hai truy vấn theo ngày/tháng thay vì gọi một truy vấn cho mỗi mốc. Số liệu kỹ thuật viên được tổng hợp theo người phụ trách trong một truy vấn.
 - CSV đọc theo từng lô, tên file do máy chủ tạo; phản hồi có `Cache-Control: private, no-store` và `nosniff`.
 - CSV hướng tới việc xem trong Excel. Những ô có thể được nhận dạng là công thức được thêm ký tự tab trong ô đã đặt dấu nháy. Ký tự này là một phần dữ liệu xuất; khi xử lý CSV bằng chương trình cần lưu ý quy ước đó. Cách xử lý phụ thuộc ứng dụng bảng tính và không bảo đảm cho mọi quy trình lưu/mở lại file.
-- Thống kê thời gian giải quyết và cách phân loại từ khóa trên biểu đồ loại sự cố ở Dashboard là các bước phát triển tiếp theo. Bản này tập trung vào bộ lọc và CSV của trang Báo cáo.
+- Thống kê thời gian giải quyết lần đầu đã có trong bản nối tiếp. Cách phân loại từ khóa trên biểu đồ loại sự cố ở Dashboard là một bước phát triển tiếp theo.
 - Đã kiểm tra bằng Python 3.13.5, Django 6.1.2 và SQLite. Cần chạy trên môi trường Windows/MySQL của nhóm khi nghiệm thu; chưa kiểm tra trực tiếp bằng Excel trên máy người dùng.
 
 ## Kiểm thử
