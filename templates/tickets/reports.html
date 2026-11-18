@@ -165,14 +165,15 @@
         <div class="col-12 col-md-6 col-xl-3">
             <div class="report-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-hdd-network text-success me-2"></i>Cơ Cấu Sự Cố</h2>
+                    <h2 class="h6 mb-0 fw-bold"><i class="bi bi-hdd-network text-success me-2"></i>Cơ Cấu Nhóm Sự Cố</h2>
                 </div>
                 <div class="chart-container">
                     <canvas id="reportCategoryChart"></canvas>
                 </div>
                 <div class="mt-3 pt-2 border-top small text-muted text-center">
-                    Phân nhóm kỹ thuật: LAN/Wi-Fi, VPN, Máy in...
+                    Theo nhóm sự cố đã lưu; mỗi ticket chỉ được tính một lần.
                 </div>
+                {% if chart_data.category.has_unclassified %}<p class="small text-warning-emphasis mt-2 mb-0">Chưa xác định: có ticket mang nhóm trống hoặc không còn hợp lệ; cần kiểm tra lại dữ liệu.</p>{% endif %}
             </div>
         </div>
     </div>

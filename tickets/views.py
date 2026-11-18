@@ -59,108 +59,43 @@ def get_technicians_queryset():
 
 
 def get_category_stats(base_qs=None):
+    """Count each ticket once by its stored category, with an explicit legacy bucket."""
     if base_qs is None:
         base_qs = Ticket.objects.all()
 
-    choice_dict = dict(Ticket.CATEGORY_CHOICES)
-    counts = {}
-    for cat_key, _ in Ticket.CATEGORY_CHOICES:
-        counts[cat_key] = 0
-
-    db_counts = base_qs.values('category').annotate(count=Count('id'))
+    counts = dict.fromkeys(dict(Ticket.CATEGORY_CHOICES), 0)
+    unclassified = 0
+    # Clear ordering before grouping and deduplicate possible joins to history/files.
+    db_counts = base_qs.order_by().values('category').annotate(count=Count('pk', distinct=True))
     for item in db_counts:
         cat = item['category']
-        counts[cat] = item['count']
-        if cat not in choice_dict:
-            choice_dict[cat] = cat.capitalize()
+        if cat in counts:
+            counts[cat] = item['count']
+        else:
+            unclassified += item['count']
 
-    labels = [choice_dict.get(k, k) for k in counts.keys()]
+    labels = [label for _, label in Ticket.CATEGORY_CHOICES]
     data = list(counts.values())
+    if unclassified:
+        labels.append('Chưa xác định')
+        data.append(unclassified)
     return labels, data
 
 
 def get_network_incident_types_stats(base_qs=None):
-    """
-    Thống kê các loại sự cố mạng từ database theo yêu cầu:
-    - Mất kết nối Internet
-    - Lỗi Wi-Fi
-    - Lỗi mạng LAN
-    - Lỗi thiết bị mạng
-    - Lỗi máy chủ
-    - Các danh mục khác tồn tại trong database
-    """
-    if base_qs is None:
-        base_qs = Ticket.objects.all()
+    """Compatibility entry point: use the same stored groups as the report."""
+    return get_category_stats(base_qs)
 
-    # Truy vấn ORM trực tiếp từ database thật
-    internet_count = base_qs.filter(
-        Q(title__icontains='internet') | Q(description__icontains='internet') |
-        Q(title__icontains='vpn') | Q(category='vpn')
-    ).count()
 
-    wifi_count = base_qs.filter(
-        Q(title__icontains='wi-fi') | Q(title__icontains='wifi') |
-        Q(description__icontains='wi-fi') | Q(description__icontains='wifi') |
-        Q(title__icontains='access point') | Q(title__icontains='ap')
-    ).count()
-
-    lan_count = base_qs.filter(
-        Q(title__icontains='lan') | Q(description__icontains='lan') |
-        Q(title__icontains='cáp') | Q(description__icontains='cáp') |
-        Q(title__icontains='rj45') | Q(title__icontains='đầu bấm') |
-        Q(title__icontains='dhcp') | Q(title__icontains='xung đột ip')
-    ).count()
-
-    device_count = base_qs.filter(
-        Q(title__icontains='switch') | Q(title__icontains='router') |
-        Q(description__icontains='switch') | Q(description__icontains='router') |
-        Q(title__icontains='thiết bị mạng') | Q(title__icontains='tủ rack') | Q(title__icontains='ups')
-    ).count()
-
-    server_count = base_qs.filter(
-        Q(title__icontains='server') | Q(title__icontains='máy chủ') |
-        Q(description__icontains='server') | Q(description__icontains='máy chủ')
-    ).count()
-
-    printer_count = base_qs.filter(
-        Q(category='printer') | Q(title__icontains='máy in') | Q(description__icontains='máy in')
-    ).count()
-
-    other_count = base_qs.exclude(
-        Q(title__icontains='internet') | Q(description__icontains='internet') |
-        Q(title__icontains='vpn') | Q(category='vpn') |
-        Q(title__icontains='wi-fi') | Q(title__icontains='wifi') |
-        Q(description__icontains='wi-fi') | Q(description__icontains='wifi') |
-        Q(title__icontains='access point') | Q(title__icontains='ap') |
-        Q(title__icontains='lan') | Q(description__icontains='lan') |
-        Q(title__icontains='cáp') | Q(description__icontains='cáp') |
-        Q(title__icontains='rj45') | Q(title__icontains='đầu bấm') |
-        Q(title__icontains='dhcp') | Q(title__icontains='xung đột ip') |
-        Q(title__icontains='switch') | Q(title__icontains='router') |
-        Q(description__icontains='switch') | Q(description__icontains='router') |
-        Q(title__icontains='thiết bị mạng') | Q(title__icontains='tủ rack') | Q(title__icontains='ups') |
-        Q(title__icontains='server') | Q(title__icontains='máy chủ') |
-        Q(description__icontains='server') | Q(description__icontains='máy chủ') |
-        Q(category='printer') | Q(title__icontains='máy in') | Q(description__icontains='máy in')
-    ).count()
-
-    labels = [
-        'Mất kết nối Internet',
-        'Lỗi Wi-Fi',
-        'Lỗi mạng LAN',
-        'Lỗi thiết bị mạng',
-        'Lỗi máy chủ',
-        'Sự cố khác',
-    ]
-    data = [
-        internet_count,
-        wifi_count,
-        lan_count,
-        device_count,
-        server_count,
-        printer_count + other_count,
-    ]
-    return labels, data
+def get_category_chart_data(base_qs=None):
+    labels, data = get_category_stats(base_qs)
+    palette = ['#2563eb', '#8b5cf6', '#0d9488', '#ea580c', '#64748b']
+    return {
+        'labels': labels,
+        'data': data,
+        'colors': [palette[index % len(palette)] for index in range(len(labels))],
+        'has_unclassified': len(labels) > len(Ticket.CATEGORY_CHOICES),
+    }
 
 
 
@@ -666,8 +601,8 @@ def admin_dashboard(request):
         'low': base_qs.filter(priority='low').count(),
     }
 
-    # Thống kê theo loại sự cố mạng (Biểu đồ 4)
-    network_cat_labels, network_cat_data = get_network_incident_types_stats(base_qs)
+    # Count stored groups once per ticket, consistently with the report page.
+    category_chart = get_category_chart_data(base_qs)
 
     # Time series cho biểu đồ xu hướng (Biểu đồ 3)
     time_series = get_ticket_time_series()
@@ -684,11 +619,7 @@ def admin_dashboard(request):
             'data': [priority_stats['low'], priority_stats['normal'], priority_stats['high'], priority_stats['urgent']],
             'colors': ['#6b7280', '#3b82f6', '#f97316', '#ef4444'],
         },
-        'category': {
-            'labels': network_cat_labels,
-            'data': network_cat_data,
-            'colors': ['#2563eb', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6', '#64748b'],
-        },
+        'category': category_chart,
         'time_series': time_series,
         'has_data': stats['total'] > 0,
     }
@@ -929,7 +860,7 @@ def _report_context(form, base_qs, technicians, resolution_page=None):
 
     priority_stats = {key: totals[f'priority_{key}'] for key, _ in Ticket.PRIORITY_CHOICES}
 
-    category_labels, category_data = get_category_stats(base_qs)
+    category_chart = get_category_chart_data(base_qs)
     valid = form.is_valid()
     today = timezone.localdate()
     start = form.cleaned_data.get('date_from') if valid else None
@@ -947,11 +878,7 @@ def _report_context(form, base_qs, technicians, resolution_page=None):
             'data': [priority_stats['low'], priority_stats['normal'], priority_stats['high'], priority_stats['urgent']],
             'colors': ['#10b981', '#0284c7', '#f97316', '#ef4444'],
         },
-        'category': {
-            'labels': category_labels,
-            'data': category_data,
-            'colors': ['#2563eb', '#8b5cf6', '#0d9488', '#ea580c', '#6366f1', '#ec4899'],
-        },
+        'category': category_chart,
         'time_series': time_series,
     }
 
