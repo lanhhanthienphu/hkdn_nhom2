@@ -106,7 +106,7 @@ Page và CSV dùng chung form xác thực và cách lọc. CSV đọc dữ liệ
 - Tổng hợp xu hướng dùng hai truy vấn theo ngày/tháng thay vì gọi một truy vấn cho mỗi mốc. Số liệu kỹ thuật viên được tổng hợp theo người phụ trách trong một truy vấn.
 - CSV đọc theo từng lô, tên file do máy chủ tạo; phản hồi có `Cache-Control: private, no-store` và `nosniff`.
 - CSV hướng tới việc xem trong Excel. Những ô có thể được nhận dạng là công thức được thêm ký tự tab trong ô đã đặt dấu nháy. Ký tự này là một phần dữ liệu xuất; khi xử lý CSV bằng chương trình cần lưu ý quy ước đó. Cách xử lý phụ thuộc ứng dụng bảng tính và không bảo đảm cho mọi quy trình lưu/mở lại file.
-- Thống kê thời gian giải quyết lần đầu đã có trong bản nối tiếp. Cách phân loại từ khóa trên biểu đồ loại sự cố ở Dashboard là một bước phát triển tiếp theo.
+- Thống kê thời gian giải quyết lần đầu đã có trong bản nối tiếp. Biểu đồ nhóm sự cố đã được chuẩn hóa theo nhóm lưu trên ticket; xem [BACKEND2_INCIDENT_STATISTICS.md](BACKEND2_INCIDENT_STATISTICS.md) để áp dụng và kiểm tra việc tránh đếm trùng.
 - Đã kiểm tra bằng Python 3.13.5, Django 6.1.2 và SQLite. Cần chạy trên môi trường Windows/MySQL của nhóm khi nghiệm thu; chưa kiểm tra trực tiếp bằng Excel trên máy người dùng.
 
 ## Kiểm thử
