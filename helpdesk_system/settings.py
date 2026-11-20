@@ -132,12 +132,33 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+    "default": {
+        "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
 }
-DEFAULT_FROM_EMAIL = os.environ.get('HELPDESK_FROM_EMAIL', 'helpdesk@example.test')
-HELPDESK_BASE_URL = os.environ.get('HELPDESK_BASE_URL', 'http://127.0.0.1:8000')
+
+if os.environ.get("HELPDESK_EMAIL_MODE", "console").strip().lower() == "smtp":
+    MAILERS["default"] = {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": "smtp.gmail.com",
+            "port": 587,
+            "username": os.environ["HELPDESK_SMTP_USER"],
+            "password": os.environ["HELPDESK_SMTP_PASSWORD"],
+            "use_tls": True,
+            "timeout": 30,
+        },
+    }
+
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "HELPDESK_FROM_EMAIL",
+    "helpdesk@example.test",
+)
+
+HELPDESK_BASE_URL = os.environ.get(
+    "HELPDESK_BASE_URL",
+    "http://127.0.0.1:8000",
+)
 
 # Ticket files are served only by the permission-checked download view.
 PRIVATE_ATTACHMENT_ROOT = BASE_DIR / 'private_uploads'
