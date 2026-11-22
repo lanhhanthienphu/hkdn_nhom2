@@ -53,6 +53,37 @@ class TicketForm(forms.Form):
         return attachment
 
 
+class TicketEditForm(forms.Form):
+    title = forms.CharField(
+        label='Tiêu đề sự cố', min_length=5, max_length=150,
+        help_text='Mô tả ngắn gọn vấn đề bạn gặp (5–150 ký tự).',
+        widget=forms.TextInput(attrs={'class': 'form-control'}))
+    category = forms.ChoiceField(
+        label='Nhóm sự cố', choices=Ticket.CATEGORY_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}))
+    priority = forms.ChoiceField(
+        label='Độ ưu tiên', choices=Ticket.PRIORITY_CHOICES,
+        help_text='Chọn Khẩn cấp khi sự cố làm gián đoạn hoạt động của nhiều người.',
+        widget=forms.Select(attrs={'class': 'form-select'}))
+    location = forms.CharField(
+        label='Phòng / vị trí xảy ra sự cố', max_length=100,
+        widget=forms.TextInput(attrs={'class': 'form-control'}))
+    description = forms.CharField(
+        label='Mô tả chi tiết', min_length=20, max_length=5000,
+        help_text='Nêu thời điểm xảy ra lỗi, thiết bị, mức độ ảnh hưởng và những cách bạn đã thử (ít nhất 20 ký tự).',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 6, 'data-character-count': ''}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.error_messages.update({
+                'required': 'Vui lòng nhập hoặc chọn thông tin này.',
+                'min_length': 'Vui lòng nhập ít nhất %(limit_value)s ký tự.',
+                'max_length': 'Chỉ được nhập tối đa %(limit_value)s ký tự.',
+                'invalid_choice': 'Lựa chọn không hợp lệ. Vui lòng chọn lại.',
+            })
+
+
 class ReplyForm(forms.Form):
     content = forms.CharField(
         label='Thêm phản hồi', min_length=3, max_length=2000,

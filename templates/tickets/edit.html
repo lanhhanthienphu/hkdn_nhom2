@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Chỉnh sửa {{ ticket.code }} · Helpdesk Nhóm 2{% endblock %}
+{% block page_title %}Chỉnh sửa {{ ticket.code }}{% endblock %}
+{% block content %}
+<nav class="ticket-breadcrumb" aria-label="Đường dẫn">
+    <a href="{% url 'tickets:list' %}">Quản lý Ticket</a>
+    <span aria-hidden="true">/</span>
+    <a href="{% url 'tickets:detail' ticket.id %}">{{ ticket.code }}</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">Chỉnh sửa</span>
+</nav>
+<div class="page-heading">
+    <div>
+        <p class="eyebrow">CẬP NHẬT THÔNG TIN · {{ ticket.code }}</p>
+        <h1>Chỉnh sửa ticket</h1>
+        <p>Cập nhật thông tin sự cố để đội ngũ kỹ thuật hỗ trợ chính xác và nhanh hơn.</p>
+    </div>
+</div>
+<div class="ticket-layout">
+    <section class="surface" aria-labelledby="edit-form-heading">
+        <div class="surface-heading">
+            <h2 id="edit-form-heading">Thông tin sự cố</h2>
+            <p>Các trường có dấu <span class="required-mark">*</span> là bắt buộc.</p>
+        </div>
+        <form method="post" class="ticket-form" data-ticket-form>
+            {% csrf_token %}
+            {% include 'tickets/_errors.html' %}
+            {% include 'tickets/_field.html' with field=form.title %}
+            <div class="form-grid">
+                {% include 'tickets/_field.html' with field=form.category %}
+                {% include 'tickets/_field.html' with field=form.priority %}
+            </div>
+            {% include 'tickets/_field.html' with field=form.location %}
+            <div>
+                {% include 'tickets/_field.html' with field=form.description %}
+                <p class="character-count" data-count-output hidden>0 / 5.000 ký tự</p>
+            </div>
+            <div class="form-actions">
+                <a class="btn btn-outline-secondary" href="{% url 'tickets:detail' ticket.id %}">Hủy</a>
+                <button class="btn btn-primary" type="submit" data-submit-button>
+                    Lưu thay đổi <span aria-hidden="true">→</span>
+                </button>
+            </div>
+        </form>
+    </section>
+    <aside class="ticket-aside" aria-label="Lưu ý khi chỉnh sửa">
+        <section class="surface aside-card">
+            <span class="aside-icon" aria-hidden="true">i</span>
+            <h2>Lưu ý</h2>
+            <ul class="help-list">
+                <li>Mọi thay đổi thông tin ticket sẽ được tự động ghi nhận vào lịch sử hoạt động.</li>
+                <li>Người gửi chỉ có thể chỉnh sửa khi ticket đang ở trạng thái <strong>Chờ tiếp nhận</strong> và chưa có kỹ thuật viên phụ trách.</li>
+                <li>Trạng thái và tệp đính kèm hiện có của ticket sẽ được giữ nguyên.</li>
+            </ul>
+        </section>
+    </aside>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/tickets.js' %}" defer></script>{% endblock %}

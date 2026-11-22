@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from accounts.models import Role, UserProfile
 from tickets.models import Comment, Ticket, TicketHistory
@@ -81,3 +82,81 @@ class TicketModelTests(TestCase):
         self.assertEqual(comment.ticket, self.ticket)
         self.assertEqual(comment.user, self.user_reporter)
         self.assertIn('reporter1', str(comment))
+
+    def test_assign_and_unassign_closed_ticket_rejected(self):
+        self.ticket.change_status('closed', by=self.user_tech)
+        with self.assertRaises(ValidationError):
+            self.ticket.assign_technician(self.user_tech, by=self.user_tech)
+        with self.assertRaises(ValidationError):
+            self.ticket.unassign_technician(by=self.user_tech)
+
+    def test_unassign_technician_clears_assignee_and_logs_history(self):
+        self.ticket.assign_technician(self.user_tech, by=self.user_tech)
+        self.assertTrue(self.ticket.unassign_technician(by=self.user_tech, note='Đổi ca trực'))
+        self.ticket.refresh_from_db()
+        self.assertIsNone(self.ticket.assigned_to)
+        # Second unassign is a no-op
+        self.assertFalse(self.ticket.unassign_technician(by=self.user_tech))
+        latest = self.ticket.histories.latest('created_at')
+        self.assertIsNone(latest.assigned_to)
+        self.assertEqual(latest.note, 'Đổi ca trực')
+
+    def test_update_details_records_history_and_skips_noop(self):
+        changed = self.ticket.update_details(
+            data={'title': 'Tiêu đề mới sau chỉnh sửa', 'priority': 'urgent'},
+            by=self.user_reporter,
+        )
+        self.assertEqual(changed, ['title', 'priority'])
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.title, 'Tiêu đề mới sau chỉnh sửa')
+        self.assertEqual(self.ticket.priority, 'urgent')
+        latest = self.ticket.histories.latest('created_at')
+        self.assertIn('Tiêu đề', latest.note)
+        self.assertIn('Độ ưu tiên', latest.note)
+
+        # No-op update does not add duplicate history
+        count_before = self.ticket.histories.count()
+        self.assertEqual(
+            self.ticket.update_details(data={'title': 'Tiêu đề mới sau chỉnh sửa'}, by=self.user_reporter),
+            [],
+        )
+        self.assertEqual(self.ticket.histories.count(), count_before)
+
+    def test_events_does_not_duplicate_creation_history(self):
+        TicketHistory.objects.create(
+            ticket=self.ticket,
+            changed_by=self.user_reporter,
+            old_status='',
+            new_status='new',
+            note='Đã tạo yêu cầu hỗ trợ sự cố',
+        )
+        events = self.ticket.events
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]['title'], 'Đã tạo yêu cầu hỗ trợ sự cố')
+
+    def test_can_edit_and_can_delete_permissions(self):
+        role_admin = Role.objects.get_or_create(name='admin')[0]
+        user_admin = User.objects.create_user(username='admin_model_test', password='passWord123!')
+        user_admin.profile.role = role_admin
+        user_admin.profile.save()
+
+        # New & unassigned: creator can edit and delete; tech can edit only; admin can both; other neither
+        self.assertTrue(self.ticket.can_edit(self.user_reporter))
+        self.assertTrue(self.ticket.can_delete(self.user_reporter))
+        self.assertTrue(self.ticket.can_edit(self.user_tech))
+        self.assertFalse(self.ticket.can_delete(self.user_tech))
+        self.assertTrue(self.ticket.can_edit(user_admin))
+        self.assertTrue(self.ticket.can_delete(user_admin))
+        self.assertFalse(self.ticket.can_edit(self.user_other))
+        self.assertFalse(self.ticket.can_delete(self.user_other))
+
+        # After assignment: creator can no longer edit or delete
+        self.ticket.assign_technician(self.user_tech, by=user_admin)
+        self.assertFalse(self.ticket.can_edit(self.user_reporter))
+        self.assertFalse(self.ticket.can_delete(self.user_reporter))
+
+        # After closed: tech can no longer edit; admin still can
+        self.ticket.change_status('closed', by=user_admin)
+        self.assertFalse(self.ticket.can_edit(self.user_tech))
+        self.assertTrue(self.ticket.can_edit(user_admin))
+        self.assertTrue(self.ticket.can_delete(user_admin))

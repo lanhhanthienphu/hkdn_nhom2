@@ -74,6 +74,13 @@ class Ticket(models.Model):
         ordering = ['-created_at']
         verbose_name = "Phiếu hỗ trợ (Ticket)"
         verbose_name_plural = "Danh sách Phiếu hỗ trợ"
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='tickets_status_created_idx'),
+            models.Index(fields=['assigned_to', 'status'], name='tickets_assignee_status_idx'),
+            models.Index(fields=['created_by', '-created_at'], name='tickets_creator_created_idx'),
+            models.Index(fields=['priority', '-created_at'], name='tickets_priority_created_idx'),
+            models.Index(fields=['category'], name='tickets_category_idx'),
+        ]
 
     def __str__(self):
         return f"{self.get_code()} - {self.title}"
@@ -110,7 +117,7 @@ class Ticket(models.Model):
     @property
     def replies(self):
         result = []
-        for c in self.comments.select_related('user').all():
+        for c in self.comments.select_related('user', 'user__profile', 'user__profile__role').all():
             is_staff = c.user.is_staff or c.user.is_superuser
             if hasattr(c.user, 'profile') and c.user.profile.is_technician():
                 is_staff = True
@@ -125,12 +132,17 @@ class Ticket(models.Model):
 
     @property
     def events(self):
-        result = [{
-            'title': 'Đã tạo ticket',
-            'at': self.created_at,
-        }]
-        for h in self.histories.all():
-            title = h.note or f"Chuyển trạng thái: {h.new_status}"
+        histories = list(self.histories.all())
+        has_creation_log = any(h.old_status == '' and h.new_status == 'new' for h in histories)
+        status_map = dict(self.STATUS_CHOICES)
+        result = []
+        if not has_creation_log:
+            result.append({
+                'title': 'Đã tạo ticket',
+                'at': self.created_at,
+            })
+        for h in histories:
+            title = h.note or f"Chuyển trạng thái: {status_map.get(h.new_status, h.new_status)}"
             result.append({
                 'title': title,
                 'at': h.created_at,
@@ -167,6 +179,22 @@ class Ticket(models.Model):
             return True
         return False
 
+    def can_edit(self, user) -> bool:
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser or (hasattr(user, 'profile') and user.profile.is_admin()):
+            return True
+        if hasattr(user, 'profile') and user.profile.is_technician():
+            return self.status != 'closed'
+        return self.created_by_id == user.id and self.status == 'new' and self.assigned_to_id is None
+
+    def can_delete(self, user) -> bool:
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser or (hasattr(user, 'profile') and user.profile.is_admin()):
+            return True
+        return self.created_by_id == user.id and self.status == 'new' and self.assigned_to_id is None
+
     @staticmethod
     def validate_technician(tech):
         is_tech = tech and hasattr(tech, 'profile') and tech.profile.is_technician()
@@ -178,6 +206,8 @@ class Ticket(models.Model):
         database = self._state.db or 'default'
         with transaction.atomic(using=database):
             current = Ticket.objects.using(database).select_for_update().get(pk=self.pk)
+            if current.status == 'closed':
+                raise ValidationError('Không thể phân công kỹ thuật viên cho ticket đã đóng.')
             if current.assigned_to_id == tech.pk:
                 self.refresh_from_db(using=database)
                 return False
@@ -194,6 +224,57 @@ class Ticket(models.Model):
             notify_ticket_event(current, 'assigned')
             self.refresh_from_db(using=database)
         return True
+
+    def unassign_technician(self, by, note: str = "") -> bool:
+        database = self._state.db or 'default'
+        with transaction.atomic(using=database):
+            current = Ticket.objects.using(database).select_for_update().get(pk=self.pk)
+            if current.status == 'closed':
+                raise ValidationError('Không thể bỏ phân công cho ticket đã đóng.')
+            if current.assigned_to_id is None:
+                self.refresh_from_db(using=database)
+                return False
+            old_assignee = current.assignee_name
+            current.assigned_to = None
+            current.save(using=database, update_fields=['assigned_to', 'updated_at'])
+            log_note = note or f"Đã bỏ phân công kỹ thuật viên ({old_assignee})"
+            TicketHistory.objects.using(database).create(
+                ticket=current, changed_by=by, old_status=current.status,
+                new_status=current.status, assigned_to=None, note=log_note[:255],
+            )
+            self.refresh_from_db(using=database)
+        return True
+
+    def update_details(self, *, data: dict, by, note: str = "") -> list:
+        editable_fields = [
+            ('title', 'Tiêu đề'),
+            ('category', 'Nhóm sự cố'),
+            ('priority', 'Độ ưu tiên'),
+            ('location', 'Vị trí'),
+            ('description', 'Mô tả'),
+        ]
+        database = self._state.db or 'default'
+        with transaction.atomic(using=database):
+            current = Ticket.objects.using(database).select_for_update().get(pk=self.pk)
+            changed_fields = []
+            changed_labels = []
+            for field_name, label in editable_fields:
+                if field_name in data and getattr(current, field_name) != data[field_name]:
+                    setattr(current, field_name, data[field_name])
+                    changed_fields.append(field_name)
+                    changed_labels.append(label)
+            if not changed_fields:
+                self.refresh_from_db(using=database)
+                return []
+            current.save(using=database, update_fields=[*changed_fields, 'updated_at'])
+            log_note = note or f"Cập nhật thông tin ticket: {', '.join(changed_labels)}"
+            TicketHistory.objects.using(database).create(
+                ticket=current, changed_by=by, old_status=current.status,
+                new_status=current.status, assigned_to=current.assigned_to,
+                note=log_note[:255],
+            )
+            self.refresh_from_db(using=database)
+        return changed_fields
 
     def change_status(self, new_status: str, by, note: str = "") -> bool:
         if new_status == 'open':
