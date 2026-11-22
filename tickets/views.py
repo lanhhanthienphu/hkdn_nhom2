@@ -15,6 +15,7 @@ from django.http import FileResponse, Http404, HttpResponseForbidden, StreamingH
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST, require_safe
 
@@ -22,7 +23,7 @@ from kb.models import Article
 
 from . import demo_store
 from .attachment_services import create_ticket_with_attachment
-from .forms import ReplyForm, TicketForm
+from .forms import ReplyForm, TicketEditForm, TicketForm
 from .models import Attachment, Comment, Ticket
 from .reporting import ReportFilterForm, report_csv_rows, report_technician_stats, report_time_series
 from .resolution_metrics import first_resolution_row, first_resolution_summary, with_first_resolution
@@ -47,15 +48,46 @@ def is_technician_user(user):
     return bool(hasattr(user, 'profile') and user.profile.is_technician())
 
 
+def _safe_next_url(request):
+    next_url = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return None
+
+
+def _ticket_status_stats(qs):
+    totals = qs.aggregate(
+        total=Count('pk'),
+        new=Count('pk', filter=Q(status='new')),
+        in_progress=Count('pk', filter=Q(status='in_progress')),
+        resolved=Count('pk', filter=Q(status='resolved')),
+        closed=Count('pk', filter=Q(status='closed')),
+    )
+    return {
+        'total': totals['total'] or 0,
+        'new': totals['new'] or 0,
+        'in_progress': totals['in_progress'] or 0,
+        'resolved': totals['resolved'] or 0,
+        'closed': totals['closed'] or 0,
+    }
+
+
 def get_technicians_queryset():
     tech_role_names = [
         'technician', 'admin', 'it support', 'kỹ thuật viên',
         'kythuatvien', 'support', 'quản trị viên', 'quantri'
     ]
+    role_filter = Q(is_superuser=True)
+    for role_name in tech_role_names:
+        role_filter |= Q(profile__role__name__iexact=role_name)
     return User.objects.filter(
-        Q(is_superuser=True) |
-        Q(profile__role__name__in=tech_role_names)
-    ).filter(is_active=True).distinct().select_related('profile').order_by('first_name', 'username')
+        role_filter,
+        is_active=True,
+    ).distinct().select_related('profile', 'profile__role').order_by('first_name', 'username')
 
 
 def get_category_stats(base_qs=None):
@@ -167,13 +199,7 @@ def home(request):
         else:
             qs = Ticket.objects.filter(created_by=user)
 
-        stats = {
-            'total': qs.count(),
-            'new': qs.filter(status='new').count(),
-            'in_progress': qs.filter(status='in_progress').count(),
-            'resolved': qs.filter(status='resolved').count(),
-            'closed': qs.filter(status='closed').count(),
-        }
+        stats = _ticket_status_stats(qs)
         recent_tickets = list(qs.order_by('-created_at', '-pk')[:3])
 
     return render(request, 'tickets/home.html', {
@@ -239,13 +265,7 @@ def ticket_list(request):
     else:
         base_qs = Ticket.objects.select_related('created_by', 'assigned_to').filter(created_by=user)
 
-    stats = {
-        'total': base_qs.count(),
-        'new': base_qs.filter(status='new').count(),
-        'in_progress': base_qs.filter(status='in_progress').count(),
-        'resolved': base_qs.filter(status='resolved').count(),
-        'closed': base_qs.filter(status='closed').count(),
-    }
+    stats = _ticket_status_stats(base_qs)
 
     query = request.GET.get('q', '').strip()[:150]
     status = request.GET.get('status', '')
@@ -425,20 +445,23 @@ def ticket_detail(request, ticket_id):
 
     form = ReplyForm(request.POST if request.method == 'POST' else None)
     if request.method == 'POST' and form.is_valid():
-        if ticket.status == 'closed':
-            form.add_error(None, 'Ticket đã đóng, không thể thêm phản hồi.')
-        else:
-            try:
-                with transaction.atomic():
+        try:
+            with transaction.atomic():
+                locked_ticket = Ticket.objects.select_for_update().get(pk=ticket.pk)
+                if locked_ticket.status == 'closed':
+                    ticket.status = 'closed'
+                    form.add_error(None, 'Ticket đã đóng, không thể thêm phản hồi.')
+                else:
                     Comment.objects.create(
-                        ticket=ticket,
+                        ticket=locked_ticket,
                         user=request.user,
                         content=form.cleaned_data['content'],
                     )
-            except DatabaseError:
-                logger.exception('Could not save reply for ticket %s', ticket.pk)
-                form.add_error(None, 'Chưa gửi được phản hồi. Nội dung của bạn vẫn được giữ bên dưới; vui lòng thử lại.')
-            else:
+        except DatabaseError:
+            logger.exception('Could not save reply for ticket %s', ticket.pk)
+            form.add_error(None, 'Chưa gửi được phản hồi. Nội dung của bạn vẫn được giữ bên dưới; vui lòng thử lại.')
+        else:
+            if not form.errors:
                 messages.success(request, 'Đã thêm phản hồi thành công.')
                 return redirect(reverse('tickets:detail', args=[ticket_id]) + '#conversation')
 
@@ -456,11 +479,79 @@ def ticket_detail(request, ticket_id):
         'histories': histories,
         'user_is_admin': user_admin,
         'user_is_tech': user_tech,
-        'can_assign': user_admin,
-        'can_claim': (user_tech and not user_admin and ticket.assigned_to_id != request.user.id),
-        'can_change_status': user_admin or user_tech or (ticket.created_by_id == request.user.id),
+        'can_assign': user_admin and ticket.status != 'closed',
+        'can_unassign': user_admin and ticket.assigned_to_id is not None and ticket.status != 'closed',
+        'can_claim': (user_tech and not user_admin and ticket.assigned_to_id != request.user.id and ticket.status != 'closed'),
+        'can_change_status': user_admin or user_tech or (ticket.created_by_id == request.user.id and ticket.status != 'closed'),
+        'can_edit': ticket.can_edit(request.user),
+        'can_delete': ticket.can_delete(request.user),
         'statuses': Ticket.STATUS_CHOICES,
     })
+
+
+@require_http_methods(['GET', 'POST'])
+@never_cache
+def ticket_edit(request, ticket_id):
+    if getattr(settings, 'FRONTEND_DEMO_ENABLED', None) in (True, False):
+        raise Http404('Chỉnh sửa ticket không khả dụng trong chế độ xem thử.')
+
+    ticket = Ticket.objects.select_related('created_by', 'assigned_to').filter(id=ticket_id).first()
+    if ticket is None or not ticket.can_view(request.user):
+        return render(request, '404.html', {
+            'error_message': 'Ticket này không tồn tại hoặc bạn không có quyền xem.',
+        }, status=404)
+
+    if not ticket.can_edit(request.user):
+        return HttpResponseForbidden('Bạn không có quyền chỉnh sửa ticket này ở trạng thái hiện tại.')
+
+    initial = {
+        'title': ticket.title,
+        'category': ticket.category,
+        'priority': ticket.priority,
+        'location': ticket.location,
+        'description': ticket.description,
+    }
+    form = TicketEditForm(request.POST if request.method == 'POST' else None, initial=initial)
+    if request.method == 'POST' and form.is_valid():
+        changed = ticket.update_details(data=form.cleaned_data, by=request.user)
+        if changed:
+            messages.success(request, f'Đã cập nhật thông tin ticket {ticket.code}.')
+        else:
+            messages.info(request, 'Không có thông tin nào thay đổi.')
+        return redirect('tickets:detail', ticket_id=ticket.id)
+
+    return render(request, 'tickets/edit.html', {
+        'ticket': ticket,
+        'form': form,
+        'ticket_demo_enabled': False,
+    })
+
+
+@require_POST
+@never_cache
+def ticket_delete(request, ticket_id):
+    if getattr(settings, 'FRONTEND_DEMO_ENABLED', None) in (True, False):
+        raise Http404('Xóa ticket không khả dụng trong chế độ xem thử.')
+
+    if not request.user.is_authenticated:
+        return HttpResponseForbidden('Vui lòng đăng nhập.')
+
+    ticket = Ticket.objects.filter(id=ticket_id).first()
+    if ticket is None or not ticket.can_view(request.user):
+        raise Http404('Không tìm thấy ticket.')
+
+    if not ticket.can_delete(request.user):
+        return HttpResponseForbidden('Bạn không có quyền xóa ticket này ở trạng thái hiện tại.')
+
+    code = ticket.code
+    with transaction.atomic():
+        ticket.delete()
+    messages.success(request, f'Đã xóa ticket {code} thành công.')
+
+    next_url = _safe_next_url(request)
+    if next_url:
+        return redirect(next_url)
+    return redirect('tickets:list')
 
 
 @never_cache
@@ -525,8 +616,35 @@ def ticket_assign(request, ticket_id):
         else:
             messages.info(request, 'Ticket đã được phân công cho người này.')
 
-    next_url = request.POST.get('next') or request.GET.get('next')
-    if next_url and next_url.startswith('/'):
+    next_url = _safe_next_url(request)
+    if next_url:
+        return redirect(next_url)
+    return redirect('tickets:detail', ticket_id=ticket.id)
+
+
+@require_POST
+@never_cache
+def ticket_unassign(request, ticket_id):
+    user = request.user
+    if not user.is_authenticated:
+        return HttpResponseForbidden("Vui lòng đăng nhập.")
+    if not is_admin_user(user):
+        return HttpResponseForbidden("Chỉ quản trị viên mới có quyền bỏ phân công kỹ thuật viên.")
+
+    ticket = get_object_or_404(Ticket, id=ticket_id)
+    note = request.POST.get('note', '').strip()
+    try:
+        changed = ticket.unassign_technician(by=user, note=note)
+    except ValidationError as error:
+        messages.error(request, ' '.join(error.messages))
+    else:
+        if changed:
+            messages.success(request, 'Đã bỏ phân công kỹ thuật viên.')
+        else:
+            messages.info(request, 'Ticket hiện chưa có kỹ thuật viên phụ trách.')
+
+    next_url = _safe_next_url(request)
+    if next_url:
         return redirect(next_url)
     return redirect('tickets:detail', ticket_id=ticket.id)
 
@@ -558,8 +676,8 @@ def ticket_change_status(request, ticket_id):
     else:
         messages.info(request, 'Trạng thái ticket không thay đổi.')
 
-    next_url = request.POST.get('next') or request.GET.get('next')
-    if next_url and next_url.startswith('/'):
+    next_url = _safe_next_url(request)
+    if next_url:
         return redirect(next_url)
     return redirect('tickets:detail', ticket_id=ticket.id)
 

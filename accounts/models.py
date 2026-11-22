@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class Role(models.Model):
@@ -66,13 +68,8 @@ class UserProfile(models.Model):
         return not self.is_technician()
 
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
+def create_user_profile(sender, instance, created, raw=False, **kwargs):
+    if created and not raw:
         user_role = Role.objects.filter(name='user').first()
         UserProfile.objects.get_or_create(user=instance, defaults={'role': user_role})
-

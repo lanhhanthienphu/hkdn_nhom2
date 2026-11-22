@@ -65,7 +65,10 @@ Tài liệu này tổng hợp toàn bộ các models, luồng xử lý CRUD, ph�
 | `GET` | `/tickets/` | `tickets:list` | Danh sách ticket: Phân quyền (User chỉ thấy ticket của mình; Kỹ thuật viên/Admin thấy toàn bộ), tìm kiếm theo từ khóa/mã HD-*, lọc trạng thái/nhóm/độ ưu tiên, sắp xếp và phân trang 5 ticket/trang |
 | `GET, POST` | `/tickets/new/` | `tickets:create` | Tạo ticket mới: Validate dữ liệu, lưu vào database, tạo lịch sử ban đầu |
 | `GET, POST` | `/tickets/<id>/` | `tickets:detail` | Chi tiết ticket: Hiển thị đầy đủ thông tin, tiến độ, bình luận, lịch sử. Cho phép gửi bình luận (chặn gửi khi ticket đã đóng) |
-| `POST` | `/tickets/<id>/assign/` | `tickets:assign` | Phân công kỹ thuật viên phụ trách (dành cho Admin / Kỹ thuật viên), nhận `technician_id` và `note` |
+| `GET, POST` | `/tickets/<id>/edit/` | `tickets:edit` | Chỉnh sửa thông tin ticket (`title`, `category`, `priority`, `location`, `description`) kèm tự động ghi `TicketHistory` (User sửa được khi ticket `new` chưa phân công; KTV sửa được khi chưa đóng; Admin sửa được mọi ticket) |
+| `POST` | `/tickets/<id>/delete/` | `tickets:delete` | Xóa/Hủy ticket (User xóa được ticket của mình khi còn `new` chưa phân công; Admin xóa được mọi ticket) |
+| `POST` | `/tickets/<id>/assign/` | `tickets:assign` | Phân công kỹ thuật viên phụ trách (dành cho Admin / Kỹ thuật viên tự nhận; chặn phân công ticket đã đóng), nhận `technician_id` và `note` |
+| `POST` | `/tickets/<id>/unassign/` | `tickets:unassign` | Bỏ phân công kỹ thuật viên (chỉ dành cho Admin; chặn trên ticket đã đóng), ghi nhận `TicketHistory` |
 | `POST` | `/tickets/<id>/status/` | `tickets:change_status` | Cập nhật trạng thái sự cố (dành cho Admin / Kỹ thuật viên, hoặc Người tạo đóng ticket của mình), nhận `status` và `note` |
 
 ---
