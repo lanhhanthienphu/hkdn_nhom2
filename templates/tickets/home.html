@@ -37,11 +37,25 @@
 </section>
 {% endif %}
 
-<section class="content-section" aria-labelledby="kb-home-title">
-    <div class="section-heading"><div><p class="eyebrow text-secondary">TỰ KIỂM TRA TRƯỚC KHI BÁO LỖI</p><h2 id="kb-home-title">Hướng dẫn hữu ích</h2></div><a class="text-link" href="{% url 'kb:article_list' %}">Kho kiến thức →</a></div>
-    <div class="home-articles">
-        {% for article in articles %}<article class="surface home-article"><span class="article-label">HƯỚNG DẪN</span><h3><a href="{% url 'kb:article_detail' article.pk %}">{{ article.title }}</a></h3><p>{{ article.content|truncatewords:22 }}</p><a class="text-link" href="{% url 'kb:article_detail' article.pk %}">Đọc hướng dẫn <span aria-hidden="true">→</span><span class="visually-hidden">: {{ article.title }}</span></a></article>
-        {% empty %}<div class="surface home-kb-empty"><p>Nhóm đang bổ sung các bài hướng dẫn. Bạn vẫn có thể tạo ticket khi gặp sự cố.</p><a class="text-link" href="{% url 'kb:article_list' %}">Mở Kho kiến thức →</a></div>{% endfor %}
+<section class="content-section" aria-labelledby="assistant-home-title">
+    <div class="assistant-home-card">
+        <div class="assistant-home-icon"><i class="bi bi-chat-dots-fill" aria-hidden="true"></i></div>
+        <div>
+            <p class="eyebrow text-secondary mb-2">TRỢ LÝ HỖ TRỢ</p>
+            <h2 id="assistant-home-title">Cần hướng dẫn nhanh?</h2>
+            <p class="mb-0">Hỏi trợ lý về cách sử dụng Helpdesk hoặc các bước kiểm tra lỗi mạng cơ bản.</p>
+            {% if articles %}
+                <details class="mt-2 small">
+                    <summary>Đọc bài hướng dẫn đã xuất bản</summary>
+                    <ul class="mt-2 mb-0 ps-3">
+                        {% for article in articles %}
+                            <li><a href="{% url 'kb:article_detail' article.pk %}">{{ article.title }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </details>
+            {% endif %}
+        </div>
+        <button class="btn btn-primary assistant-home-button" type="button" data-chatbot-open data-chatbot-prompt="Web này dùng để làm gì?">Trò chuyện với trợ lý <span aria-hidden="true">→</span></button>
     </div>
 </section>
 

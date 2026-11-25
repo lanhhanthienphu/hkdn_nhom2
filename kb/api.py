@@ -1,11 +1,14 @@
 from functools import wraps
+import json
 from urllib.parse import urlencode
 
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 
+from .chatbot import MAX_MESSAGE_LENGTH, answer_question
 from .models import Article
 
 
@@ -98,3 +101,25 @@ def article_detail(request, pk):
         }, status=404)
 
     return json_response(article_data(article))
+
+
+@require_POST
+@never_cache
+def chat(request):
+    """Answer a helpdesk question using published KB content and safe FAQs."""
+    try:
+        payload = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return json_response({"error": "invalid_json", "message": "Dữ liệu gửi lên không hợp lệ."}, status=400)
+
+    message = payload.get("message", "") if isinstance(payload, dict) else ""
+    if not isinstance(message, str) or not message.strip():
+        return json_response({"error": "message_required", "message": "Bạn hãy nhập câu hỏi."}, status=400)
+    if len(message) > MAX_MESSAGE_LENGTH:
+        return json_response({"error": "message_too_long", "message": f"Câu hỏi tối đa {MAX_MESSAGE_LENGTH} ký tự."}, status=400)
+
+    history = payload.get("history", [])
+    if not isinstance(history, list):
+        history = []
+    result = answer_question(message, history)
+    return json_response(result)

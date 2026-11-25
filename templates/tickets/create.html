@@ -33,7 +33,12 @@
         </form>
     </section>
     <aside class="ticket-aside" aria-label="Hướng dẫn báo sự cố">
-        <section class="surface aside-card kb-suggestion"><span class="aside-icon" aria-hidden="true">?</span><h2>Thử kiểm tra nhanh</h2><p>Có thể bạn sẽ tìm được cách khắc phục trong tài liệu của nhóm trước khi gửi yêu cầu.</p><a class="text-link" href="{% url 'kb:article_list' %}{% if kb_query %}?q={{ kb_query|urlencode }}{% endif %}" data-kb-suggestion data-kb-url="{% url 'kb:article_list' %}">Tìm hướng dẫn liên quan →</a></section>
+        <section class="surface aside-card kb-suggestion">
+            <span class="aside-icon" aria-hidden="true">?</span>
+            <h2>Thử kiểm tra nhanh</h2>
+            <p>Hỏi trợ lý hoặc <a href="{% url 'kb:article_list' %}{% if kb_query %}?q={{ kb_query|urlencode }}{% endif %}" data-kb-suggestion data-kb-url="{% url 'kb:article_list' %}">đọc hướng dẫn theo nhóm sự cố</a> trước khi gửi ticket.</p>
+            <button class="text-link border-0 bg-transparent p-0" type="button" data-chatbot-open>Mở trợ lý Helpdesk →</button>
+        </section>
         <section class="surface aside-card"><span class="aside-icon" aria-hidden="true">i</span><h2>Mô tả rõ, hỗ trợ nhanh</h2><ul class="help-list"><li>Ghi đúng phòng hoặc vị trí xảy ra sự cố.</li><li>Cho biết lỗi bắt đầu lúc nào và ảnh hưởng đến bao nhiêu người.</li><li>Liệt kê cách bạn đã thử: khởi động lại, đổi dây mạng, kết nối lại Wi-Fi…</li><li>Đính kèm ảnh thông báo lỗi nếu có. Tránh đưa mật khẩu vào ảnh.</li></ul><a href="{% url 'tickets:home' %}#report-guide" class="text-link">Xem hướng dẫn báo sự cố →</a></section>
         <section class="priority-guide"><h2>Chọn độ ưu tiên</h2><p><strong>Bình thường:</strong> vấn đề ảnh hưởng riêng bạn nhưng vẫn có thể tiếp tục công việc.</p><p><strong>Cao / Khẩn cấp:</strong> gián đoạn tiết học hoặc nhiều người cùng mất kết nối.</p></section>
     </aside>
