@@ -8,10 +8,10 @@
     <title>{% block title %}Helpdesk · Nhóm 2{% endblock %}</title>
     <link href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="{% static 'css/site.css' %}">
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v=chat-bubble">
     <link rel="stylesheet" href="{% static 'css/tickets.css' %}">
     <link rel="stylesheet" href="{% static 'css/portal.css' %}">
-    <noscript><style>.menu-toggle { display: none !important; }</style></noscript>
+    <noscript><style>.menu-toggle, [data-chatbot-open], .chatbot { display: none !important; }</style></noscript>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -58,10 +58,9 @@
                         <i class="bi bi-plus-circle" aria-hidden="true"></i>
                         Tạo ticket
                     </a>
-                    <a class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}" href="{% url 'kb:article_list' %}">
-                        <i class="bi bi-book" aria-hidden="true"></i>
-                        Kho kiến thức
-                    </a>
+                    <button class="sidebar-link bg-transparent border-0 w-100 text-start" type="button" data-chatbot-open>
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i> Trợ lý AI
+                    </button>
                 {% elif is_technician %}
                     <p class="nav-caption">KỸ THUẬT VIÊN</p>
                     <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:technician_dashboard' or request.resolver_match.view_name == 'tickets:dashboard' %} is-active{% endif %}" href="{% url 'tickets:technician_dashboard' %}">
@@ -89,10 +88,9 @@
                         <i class="bi bi-plus-circle" aria-hidden="true"></i>
                         Tạo ticket
                     </a>
-                    <a class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}" href="{% url 'kb:article_list' %}">
-                        <i class="bi bi-book" aria-hidden="true"></i>
-                        Kho kiến thức
-                    </a>
+                    <button class="sidebar-link bg-transparent border-0 w-100 text-start" type="button" data-chatbot-open>
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i> Trợ lý AI
+                    </button>
                 {% else %}
                     <p class="nav-caption">KHÔNG GIAN LÀM VIỆC</p>
                     <a class="sidebar-link{% if request.resolver_match.view_name == 'tickets:home' %} is-active{% endif %}" href="{% url 'tickets:home' %}"{% if request.resolver_match.view_name == 'tickets:home' %} aria-current="page"{% endif %}>
@@ -108,13 +106,9 @@
                         Ticket của tôi
                     </a>
                     <p class="nav-caption mt-4">HƯỚNG DẪN</p>
-                    <a
-                        class="sidebar-link{% if request.resolver_match.namespace == 'kb' %} is-active{% endif %}"
-                        href="{% url 'kb:article_list' %}"
-                    >
-                        <i class="bi bi-book" aria-hidden="true"></i>
-                        Kho kiến thức
-                    </a>
+                    <button class="sidebar-link bg-transparent border-0 w-100 text-start" type="button" data-chatbot-open>
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i> Trợ lý AI
+                    </button>
                     <a class="sidebar-link" href="{% url 'tickets:home' %}#incident-types">
                         <i class="bi bi-grid" aria-hidden="true"></i>
                         Nhóm sự cố
@@ -173,7 +167,7 @@
                 <a href="{% url 'tickets:home' %}">Trang chủ</a>
                 <a href="{% url 'tickets:create' %}">Tạo ticket</a>
                 <a href="{% url 'tickets:list' %}">Ticket của tôi</a>
-                <a href="{% url 'kb:article_list' %}">Kho kiến thức</a>
+                <a href="{% url 'kb:article_list' %}">Bài hướng dẫn</a>
             </nav>
         </noscript>
         <main id="main-content" class="main-content" tabindex="-1">
@@ -187,8 +181,42 @@
         <footer class="page-footer">Helpdesk Nhóm 2 <span>Hệ thống tiếp nhận và xử lý sự cố mạng</span></footer>
     </div>
 
+    <section class="chatbot" data-chatbot data-chat-url="{% url 'kb_api:chat' %}" aria-label="Trợ lý Helpdesk">
+        <button class="chatbot-launcher" type="button" data-chatbot-toggle
+                aria-label="Mở chat với trợ lý Helpdesk" title="Mở chat với trợ lý Helpdesk"
+                aria-controls="helpdesk-chat-panel" aria-haspopup="dialog" aria-expanded="false">
+            <span class="chatbot-speech-icon" aria-hidden="true"></span>
+            <span class="chatbot-fold-icon" aria-hidden="true"></span>
+        </button>
+        <div class="chatbot-panel" id="helpdesk-chat-panel" data-chatbot-panel role="dialog" aria-labelledby="chatbot-title" tabindex="-1" hidden>
+            <header class="chatbot-header">
+                <div class="chatbot-avatar" aria-hidden="true"><span class="chatbot-speech-icon"></span></div>
+                <div class="chatbot-heading"><strong id="chatbot-title">Trợ lý Helpdesk</strong><span><i class="chatbot-online-dot" aria-hidden="true"></i> Hỗ trợ sự cố cơ bản</span></div>
+                <button class="chatbot-icon-button" type="button" data-chatbot-clear aria-label="Cuộc trò chuyện mới" title="Cuộc trò chuyện mới"><span aria-hidden="true">↻</span></button>
+                <button class="chatbot-icon-button" type="button" data-chatbot-close aria-label="Thu gọn khung chat" title="Thu gọn"><span aria-hidden="true">−</span></button>
+            </header>
+            <div class="chatbot-messages" data-chatbot-messages role="log" aria-live="polite" aria-relevant="additions text">
+                <div class="chatbot-message chatbot-message-bot"><span>Xin chào! Mình có thể hướng dẫn cách dùng hệ thống và kiểm tra một số lỗi mạng cơ bản. Bạn cần hỗ trợ gì?</span></div>
+                <div class="chatbot-quick-prompts" data-chatbot-prompts>
+                    <button type="button" data-chatbot-prompt="Web này dùng để làm gì?">Web này dùng để làm gì?</button>
+                    <button type="button" data-chatbot-prompt="Máy tính không kết nối được Wi-Fi">Mất kết nối Wi-Fi</button>
+                    <button type="button" data-chatbot-prompt="Mạng Wi-Fi chậm hoặc chập chờn">Mạng chậm</button>
+                </div>
+            </div>
+            <div class="chatbot-status" data-chatbot-status role="status" aria-live="polite"></div>
+            <form class="chatbot-form" data-chatbot-form>
+                {% csrf_token %}
+                <label class="visually-hidden" for="chatbot-input">Nhập câu hỏi</label>
+                <textarea id="chatbot-input" data-chatbot-input rows="1" maxlength="1200" placeholder="Nhập câu hỏi..." required></textarea>
+                <button type="submit" aria-label="Gửi câu hỏi"><span aria-hidden="true">↑</span></button>
+            </form>
+            <p class="chatbot-note">Không gửi mật khẩu hoặc mã xác thực.</p>
+        </div>
+    </section>
+
     <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/site.js' %}" defer></script>
+    <script src="{% static 'js/chatbot.js' %}?v=chat-bubble" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
