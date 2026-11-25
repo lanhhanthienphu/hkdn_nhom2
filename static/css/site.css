@@ -29,18 +29,7 @@ section[id] { scroll-margin-top: 28px; }
 .sidebar-link i { font-size: 16px; flex-shrink: 0; color: #ffffff; }
 .sidebar-link svg { width: 18px; height: 18px; stroke: #ffffff; }
 
-/* Thông tin tài khoản ở cuối Sidebar */
-.sidebar-bottom { margin-top: auto; padding-top: 14px; border-top: 1px solid #222222; }
-.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 6px; background: #1a1a1a; }
-.sidebar-user-avatar { width: 34px; height: 34px; border-radius: 50%; background: #2563eb; color: #ffffff; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
-.sidebar-user-info { min-width: 0; flex: 1; }
-.sidebar-user-name { font-size: 12.5px; font-weight: 600; color: #ffffff; margin-bottom: 1px; }
-.sidebar-user-role { font-size: 10.5px; color: #9ca3af; }
-.sidebar-logout-btn { color: #ffffff !important; }
-.sidebar-logout-btn:hover { background: #292929 !important; color: #ffffff !important; }
-.sidebar-logout-btn i { color: #ffffff !important; }
-
-.sidebar-footer { padding: 12px 8px 4px; color: #71717a; font-size: 11px; border-top: 1px solid #1f1f1f; margin-top: 8px; }
+.sidebar-footer { padding: 12px 8px 4px; color: #71717a; font-size: 11px; border-top: 1px solid #1f1f1f; margin-top: auto; }
 .group-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #4b5563; margin-right: 5px; }
 
 /* Nút đóng offcanvas trên mobile */
